@@ -12,48 +12,69 @@ export function createCalendar({ min, max, selected, onSelect }) {
   let viewDate = new Date(selected.getFullYear(), selected.getMonth(), 1);
   let currentSelected = new Date(selected);
 
-  const title = el("span", { class: "calendar-title", text: "" });
-  const grid = el("div", { class: "calendar-grid" });
+  const minYear = min.getFullYear();
+  const maxYear = max.getFullYear();
+
+  const monthSelect = el("select", { class: "cal-select", "aria-label": "Месяц" });
+  for (let month = 0; month < 12; month += 1) {
+    monthSelect.append(el("option", { value: String(month), text: MONTHS_NOM[month] }));
+  }
+
+  const yearSelect = el("select", { class: "cal-select", "aria-label": "Год" });
+  for (let year = minYear; year <= maxYear + 1; year += 1) {
+    yearSelect.append(el("option", { value: String(year), text: String(year) }));
+  }
+
+  const shift = (step) => {
+    const target = new Date(viewDate.getFullYear(), viewDate.getMonth() + step, 1);
+    const lower = new Date(minYear, 0, 1);
+    const upper = new Date(maxYear + 1, 11, 1);
+    if (target < lower) {
+      target.setTime(lower.getTime());
+    }
+    if (target > upper) {
+      target.setTime(upper.getTime());
+    }
+    viewDate = target;
+    render();
+  };
+
+  const navButton = (step, path, title) =>
+    el(
+      "button",
+      { class: "calendar-nav", type: "button", title, onclick: () => shift(step) },
+      [svgIcon(path)]
+    );
 
   const head = el("div", { class: "calendar-head" }, [
-    el(
-      "button",
-      {
-        class: "calendar-nav",
-        type: "button",
-        title: "Предыдущий месяц",
-        onclick: () => {
-          viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
-          render();
-        }
-      },
-      [svgIcon("M15 18l-6-6 6-6")]
-    ),
-    title,
-    el(
-      "button",
-      {
-        class: "calendar-nav",
-        type: "button",
-        title: "Следующий месяц",
-        onclick: () => {
-          viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
-          render();
-        }
-      },
-      [svgIcon("M9 6l6 6-6 6")]
-    )
+    navButton(-12, "M11 19l-6-7 6-7M19 19l-6-7 6-7", "Предыдущий год"),
+    navButton(-1, "M15 18l-6-6 6-6", "Предыдущий месяц"),
+    el("div", { class: "calendar-selects" }, [monthSelect, yearSelect]),
+    navButton(1, "M9 6l6 6-6 6", "Следующий месяц"),
+    navButton(12, "M5 5l6 7-6 7M13 5l6 7-6 7", "Следующий год")
   ]);
 
-  const root = el("div", { class: "calendar" }, [head]);
+  const grid = el("div", { class: "calendar-grid" });
 
+  const root = el("div", { class: "calendar" }, [head]);
   for (const dow of WEEKDAYS_SHORT) {
     root.append(el("div", { class: "calendar-dow", text: dow }));
   }
   root.append(grid);
 
+  monthSelect.addEventListener("change", () => {
+    viewDate = new Date(viewDate.getFullYear(), Number(monthSelect.value), 1);
+    render();
+  });
+
+  yearSelect.addEventListener("change", () => {
+    viewDate = new Date(Number(yearSelect.value), viewDate.getMonth(), 1);
+    render();
+  });
+
   function render() {
-    title.textContent = `${MONTHS_NOM[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+    monthSelect.value = String(viewDate.getMonth());
+    yearSelect.value = String(viewDate.getFullYear());
     grid.replaceChildren();
 
     const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);

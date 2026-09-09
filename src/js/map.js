@@ -135,7 +135,8 @@ export function initMap(container, { onSelect }) {
   cityLayer.addTo(map);
 
   let geoLayer = null;
-  fetch("../assets/world-50m.geojson")
+  const worldGeoUrl = new URL("../assets/world-50m.geojson", import.meta.url).href;
+  fetch(worldGeoUrl)
     .then((response) => {
       if (!response.ok) {
         throw new Error("Не удалось загрузить карту");

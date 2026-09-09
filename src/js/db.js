@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS forecasts (
   variety_name TEXT,
   range_months INTEGER NOT NULL,
   target_date TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  data_json TEXT NOT NULL DEFAULT ''
 );
 `;
 
@@ -118,6 +119,7 @@ export async function openDatabase() {
     database = new SQL.Database();
   }
   database.run(SCHEMA);
+  ensureColumn("forecasts", "data_json", "TEXT NOT NULL DEFAULT ''");
   seedDefaultVarieties();
   await persistDatabase();
   return database;
@@ -156,6 +158,14 @@ function queryScalar(sql, params = []) {
   }
   statement.free();
   return result;
+}
+
+function ensureColumn(tableName, columnName, columnType) {
+  const rows = queryAll(`PRAGMA table_info(${tableName})`);
+  const exists = rows.some((row) => row.name === columnName);
+  if (!exists) {
+    execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType}`);
+  }
 }
 
 function queryAll(sql, params = []) {
@@ -229,12 +239,12 @@ export async function deleteVariety(id) {
   return { ok: true };
 }
 
-export async function addForecast(record) {
+export async function addForecast(record, data = null) {
   const id = uid();
   const timestamp = now();
   execute(
-    "INSERT INTO forecasts (id, lat, lon, variety_id, variety_name, range_months, target_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [id, record.lat, record.lon, record.varietyId || null, record.varietyName || "", record.rangeMonths, record.targetDate, timestamp]
+    "INSERT INTO forecasts (id, lat, lon, variety_id, variety_name, range_months, target_date, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [id, record.lat, record.lon, record.varietyId || null, record.varietyName || "", record.rangeMonths, record.targetDate, timestamp, data ? JSON.stringify(data) : ""]
   );
   await persistDatabase();
   return { id, ...record, created_at: timestamp };
@@ -246,5 +256,10 @@ export async function listForecasts(limit = 12) {
 
 export async function deleteForecast(id) {
   execute("DELETE FROM forecasts WHERE id = ?", [id]);
+  await persistDatabase();
+}
+
+export async function clearAllForecasts() {
+  execute("DELETE FROM forecasts");
   await persistDatabase();
 }

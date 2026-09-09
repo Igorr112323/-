@@ -9,7 +9,7 @@ const STEPS = [
   "Построение модели прогноза"
 ];
 
-const DURATION = 4300;
+const DURATION = 1700;
 
 function easeInOutCubic(value) {
   return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
