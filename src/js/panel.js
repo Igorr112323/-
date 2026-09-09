@@ -14,16 +14,19 @@ function setCoordsBox() {
   const lat = document.getElementById("coord-lat");
   const lon = document.getElementById("coord-lon");
 
+  const status = document.getElementById("coords-status");
   if (store.point) {
     box.classList.add("has-point");
     empty.classList.add("hidden");
     values.classList.remove("hidden");
     lat.textContent = `${formatCoord(store.point.lat)}°`;
     lon.textContent = `${formatCoord(store.point.lon)}°`;
+    status.textContent = "Точка выбрана — прогноз доступен";
   } else {
     box.classList.remove("has-point");
     empty.classList.remove("hidden");
     values.classList.add("hidden");
+    status.textContent = "Выберите точку, чтобы разблокировать прогноз";
   }
   syncForecastButton();
 }

@@ -36,7 +36,7 @@ export function runLoading({ title = "Загрузка погодных данн
   percent.textContent = "0%";
   overlay.classList.remove("hidden");
 
-  const startedAt = performance.now();
+  const startedAt = Date.now();
 
   function update(progress) {
     const clamped = Math.min(1, Math.max(0, progress));

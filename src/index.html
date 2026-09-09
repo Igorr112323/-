@@ -14,7 +14,7 @@
       <div class="brand">
         <img class="brand-logo" src="./assets/icon.png" alt="" draggable="false" />
         <div class="brand-text">
-          <span class="brand-name">АгроПрогноз</span>
+          <span class="brand-name">Агро<span class="brand-accent">Прогноз</span></span>
           <span class="brand-tag">Прогноз погоды для кукурузы</span>
         </div>
       </div>
@@ -37,79 +37,87 @@
       <section class="view is-active" id="view-map">
         <div id="map"></div>
         <div class="map-hint" id="map-hint">
+          <span class="hint-ping"></span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
-          <span>Кликните по карте, чтобы выбрать точку прогноза</span>
+          <div class="hint-body">
+            <span class="hint-title">Выберите точку на карте</span>
+            <span class="hint-sub">Кликните в любом месте, чтобы задать координаты прогноза</span>
+          </div>
         </div>
         <div class="map-legend" id="map-legend">
-          <div class="legend-title">Легенда</div>
+          <div class="legend-title">Обозначения</div>
           <div class="legend-row"><span class="legend-dot dot-field"></span><span>Выбранная точка</span></div>
-          <div class="legend-row"><span class="legend-dot dot-city"></span><span>Города</span></div>
+          <div class="legend-row"><span class="legend-dot dot-city"></span><span>Крупные города</span></div>
           <div class="legend-row"><span class="legend-line"></span><span>Сетка координат</span></div>
         </div>
         <aside class="panel" id="panel">
           <div class="panel-head">
-            <div>
+            <div class="panel-head-title">
               <span class="panel-kicker">Настройки прогноза</span>
               <h2 class="panel-title">Параметры точки</h2>
             </div>
-            <button class="icon-btn" id="panel-collapse" type="button" title="Свернуть">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <button class="icon-btn" id="panel-collapse" type="button" title="Свернуть панель">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v16M15 4v16M9 12h12"/></svg>
             </button>
           </div>
 
-          <div class="panel-section" id="coords-section">
-            <label class="section-label">Координаты точки</label>
-            <div class="coords-box" id="coords-box">
-              <span class="coords-empty" id="coords-empty">Точка не выбрана</span>
-              <div class="coords-values hidden" id="coords-values">
-                <div class="coord-row"><span class="coord-axis">Широта</span><span class="coord-num" id="coord-lat">—</span></div>
-                <div class="coord-row"><span class="coord-axis">Долгота</span><span class="coord-num" id="coord-lon">—</span></div>
+          <div class="panel-body" id="panel-body">
+            <div class="panel-section" id="coords-section">
+              <label class="section-label">Координаты точки</label>
+              <div class="coords-box" id="coords-box">
+                <span class="coords-empty" id="coords-empty">Точка не выбрана</span>
+                <div class="coords-values hidden" id="coords-values">
+                  <div class="coord-row"><span class="coord-axis">Широта</span><span class="coord-num" id="coord-lat">—</span></div>
+                  <div class="coord-row"><span class="coord-axis">Долгота</span><span class="coord-num" id="coord-lon">—</span></div>
+                </div>
+              </div>
+              <div class="coords-status" id="coords-status">Выберите точку, чтобы разблокировать прогноз</div>
+            </div>
+
+            <div class="panel-section">
+              <label class="section-label">Дальность прогноза</label>
+              <div class="seg" id="range-seg">
+                <div class="seg-thumb" id="seg-thumb"></div>
+                <button class="seg-btn is-active" data-range="1" type="button"><b>1</b><span>месяц</span></button>
+                <button class="seg-btn" data-range="3" type="button"><b>3</b><span>месяца</span></button>
+                <button class="seg-btn" data-range="6" type="button"><b>6</b><span>месяцев</span></button>
               </div>
             </div>
-          </div>
 
-          <div class="panel-section">
-            <label class="section-label">Дальность прогноза</label>
-            <div class="seg" id="range-seg">
-              <div class="seg-thumb" id="seg-thumb"></div>
-              <button class="seg-btn is-active" data-range="1" type="button">1 месяц</button>
-              <button class="seg-btn" data-range="3" type="button">3 месяца</button>
-              <button class="seg-btn" data-range="6" type="button">6 месяцев</button>
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <label class="section-label">Дата прогноза</label>
-            <button class="date-button" id="date-button" type="button">
-              <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3.5 8h17M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
-              <span id="date-value">Сегодня</span>
-              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            <div class="calendar-wrap" id="calendar-wrap">
-              <div id="calendar"></div>
-              <div class="calendar-note" id="calendar-note"></div>
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <label class="section-label">Сорт культуры</label>
-            <div class="select-row">
-              <select id="variety-select" class="select"></select>
-              <button class="icon-btn" id="varieties-manage" type="button" title="Управление сортами">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <div class="panel-section">
+              <label class="section-label">Дата прогноза</label>
+              <button class="date-button" id="date-button" type="button">
+                <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3.5 8h17M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+                <span id="date-value">Сегодня</span>
+                <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
               </button>
+              <div class="calendar-wrap" id="calendar-wrap">
+                <div id="calendar"></div>
+                <div class="calendar-note" id="calendar-note"></div>
+              </div>
             </div>
-          </div>
 
-          <button class="btn-primary" id="forecast-btn" type="button" disabled>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
-            <span>Спрогнозировать</span>
-          </button>
+            <div class="panel-section">
+              <label class="section-label">Сорт культуры</label>
+              <div class="select-row">
+                <select id="variety-select" class="select"></select>
+                <button class="icon-btn" id="varieties-manage" type="button" title="Управление сортами">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
 
-          <div class="panel-section history-section" id="history-section">
-            <label class="section-label">История прогнозов</label>
-            <div class="history-list" id="history-list"></div>
-            <div class="history-empty" id="history-empty">Пока нет прогнозов</div>
+            <button class="btn-primary" id="forecast-btn" type="button" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+              <span>Спрогнозировать</span>
+              <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+
+            <div class="panel-section history-section" id="history-section">
+              <label class="section-label">История прогнозов</label>
+              <div class="history-list" id="history-list"></div>
+              <div class="history-empty" id="history-empty">Пока нет прогнозов</div>
+            </div>
           </div>
         </aside>
       </section>

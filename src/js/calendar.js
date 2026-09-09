@@ -1,4 +1,4 @@
-import { el, svgIcon, sameDay, WEEKDAYS_SHORT, MONTHS_NOM, formatFullDate } from "./util.js";
+import { el, svgIcon, addMonths, sameDay, WEEKDAYS_SHORT, MONTHS_NOM, formatFullDate } from "./util.js";
 
 export function computeForecastRange(today, rangeMonths) {
   const min = new Date(today);

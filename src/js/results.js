@@ -57,7 +57,7 @@ function buildChart(series) {
   const yForTemp = (value) => padTop + (1 - (value - tempMin) / (tempMax - tempMin)) * plotHeight;
   const barHeight = (value) => (value / precipMax) * plotHeight;
 
-  const svg = makeSvgElement("svg", { class: "chart-canvas", viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: "none" });
+  const svg = makeSvgElement("svg", { class: "chart-canvas", viewBox: `0 0 ${width} ${height}` });
   const gradientId = `temp-band-${uid()}`;
   const defs = makeSvgElement("defs", {});
   const bandGradient = makeSvgElement("linearGradient", { id: gradientId, x1: "0", y1: "0", x2: "0", y2: "1" });

@@ -44,8 +44,8 @@ function buildVarietyCard(variety, index) {
     el("div", { class: "vbar-row" }, [el("span", { text: "Холодостойкость" }), el("div", { class: "vbar-track" }, [el("div", { class: "vbar-fill", style: `width:0%`, dataset: { width: `${(variety.cold / 10) * 100}%` } })]), el("span", { class: "vbar-value", text: `${variety.cold}` })])
   ]);
 
-  const editBtn = el("button", { class: "mini-btn", type: "button", onclick: () => openForm(variety) }, [svgIcon("M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z")]);
-  const deleteBtn = el("button", { class: "mini-btn danger", type: "button", onclick: () => confirmDelete(variety) }, [svgIcon("M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14")]);
+  const editBtn = el("button", { class: "mini-btn", type: "button", onclick: () => openForm(variety) }, [svgIcon("M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"), el("span", { text: "Изменить" })]);
+  const deleteBtn = el("button", { class: "mini-btn danger", type: "button", onclick: () => confirmDelete(variety) }, [svgIcon("M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"), el("span", { text: "Удалить" })]);
 
   const foot = el("div", { class: "variety-foot" }, [
     el("span", { class: "variety-date", text: `Создан ${formatShortDate(new Date(variety.created_at))}` }),
@@ -79,8 +79,12 @@ function renderList() {
 }
 
 function buildField(label, hint, inputNode, errorNode, required = false) {
+  const labelNode = el("label", {}, [
+    el("span", { text: label }),
+    required ? el("span", { class: "req", text: " *" }) : null
+  ]);
   return el("div", { class: "field" }, [
-    el("label", { text: label }, required ? [el("span", { text: label }), el("span", { class: "req", text: " *" })] : [el("span", { text: label })]),
+    labelNode,
     inputNode,
     errorNode,
     hint ? el("span", { class: "field-hint", text: hint }) : null

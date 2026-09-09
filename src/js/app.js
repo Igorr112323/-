@@ -101,30 +101,6 @@ function openForecastFromHistory(record) {
 }
 
 async function boot() {
-  try {
-    await openDatabase();
-  } catch {
-    showToast("Не удалось открыть базу данных", "error");
-  }
-
-  document.getElementById("nav-map").addEventListener("click", () => emit("nav", { view: "map" }));
-  document.getElementById("nav-varieties").addEventListener("click", () => emit("nav", { view: "varieties" }));
-
-  on("nav", ({ view }) => switchView(view));
-  on("varieties:changed", () => {
-    populateVarietySelect();
-  });
-  on("history:open", (record) => openForecastFromHistory(record));
-  on("map:error", () => {
-    showToast("Не удалось загрузить картографические данные", "error");
-  });
-
-  await populateVarietySelect();
-  await renderHistory();
-  await initVarietiesPage();
-
-  mapHandle = initMap(document.getElementById("map"), { onSelect: handlePointSelect });
-
   initPanel(state, {
     onForecast: handleForecast,
     onRangeChange: () => {
@@ -140,7 +116,38 @@ async function boot() {
     }
   });
 
-  switchView("map");
+  document.getElementById("nav-map").addEventListener("click", () => emit("nav", { view: "map" }));
+  document.getElementById("nav-varieties").addEventListener("click", () => emit("nav", { view: "varieties" }));
+
+  on("nav", ({ view }) => switchView(view));
+  on("varieties:changed", () => {
+    populateVarietySelect();
+  });
+  on("history:open", (record) => openForecastFromHistory(record));
+  on("map:error", () => {
+    showToast("Не удалось загрузить картографические данные", "error");
+  });
+
+  try {
+    await openDatabase();
+  } catch {
+    showToast("Не удалось открыть базу данных", "error");
+  }
+
+  try {
+    await populateVarietySelect();
+    await renderHistory();
+    await initVarietiesPage();
+    mapHandle = initMap(document.getElementById("map"), { onSelect: handlePointSelect });
+    switchView("map");
+  } catch (error) {
+    console.error(error);
+    showToast("Произошла ошибка при запуске приложения", "error");
+  }
 }
 
-window.addEventListener("DOMContentLoaded", boot);
+if (document.readyState !== "loading") {
+  boot();
+} else {
+  window.addEventListener("DOMContentLoaded", boot);
+}
