@@ -20,7 +20,7 @@ const RUSSIAN_CITIES = [
   ["Волгоград", 48.708, 44.5133]
 ];
 
-const SATELLITE_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const SATELLITE_TILES = "https:
 const SATELLITE_ATTR = "© Esri · Maxar · Earthstar Geographics";
 
 function regionStyle() {
@@ -175,7 +175,7 @@ export function initMap(container, { onSelect }) {
   map.on("zoomend", updateCityVisibility);
   updateCityVisibility();
 
-  // Cinematic initial fly-in
+  
   map.setView([0, 90], 2, { animate: false });
   setTimeout(() => map.flyTo([60, 90], 3.5, { duration: 2.5 }), 140);
 
