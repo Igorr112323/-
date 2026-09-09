@@ -1,4 +1,5 @@
 import * as L from "../vendor/leaflet/leaflet-src.esm.js";
+import { assetUrl } from "./util.js";
 
 const MAJOR_CITIES = [
   ["Москва", 55.7558, 37.6173],
@@ -74,6 +75,11 @@ const FIELD_MARKER_HTML = `
   </span>
 </div>`;
 
+const VECTOR_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const VECTOR_ATTR = "© OpenStreetMap contributors · © CARTO";
+const SATELLITE_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const SATELLITE_ATTR = "© Esri · Maxar · Earthstar Geographics";
+
 function buildGraticule() {
   const lines = [];
   for (let lat = -80; lat <= 80; lat += 10) {
@@ -85,24 +91,43 @@ function buildGraticule() {
   return L.layerGroup(lines);
 }
 
-function countryStyle(feature) {
-  const base = { color: "#2c4a37", weight: 0.7, fillColor: "#1b3325", fillOpacity: 0.92 };
-  if (feature && feature.properties && feature.properties.name === "Antarctica") {
-    base.fillColor = "#14201a";
-  }
-  return base;
+function countryStyle() {
+  return { color: "#8fbf9a", weight: 0.7, fillColor: "#163522", fillOpacity: 0.42 };
 }
 
-function highlightStyle() {
-  return { color: "#4c8a5c", weight: 1, fillColor: "#274a33", fillOpacity: 0.95 };
+function regionStyle() {
+  return { color: "#6e8d75", weight: 0.6, fillColor: "#1d3a28", fillOpacity: 0.3 };
+}
+
+function glowStyle() {
+  return { color: "#ffc53d", weight: 1.6, fillColor: "#ffc53d", fillOpacity: 0.32 };
+}
+
+function bindHover(layer, layerRef) {
+  layer.on({
+    mouseover: (event) => {
+      event.target.setStyle(glowStyle());
+      const node = event.target.getElement();
+      if (node) {
+        node.classList.add("map-glow");
+      }
+    },
+    mouseout: (event) => {
+      layerRef.resetStyle(event.target);
+      const node = event.target.getElement();
+      if (node) {
+        node.classList.remove("map-glow");
+      }
+    }
+  });
 }
 
 export function initMap(container, { onSelect }) {
   const map = L.map(container, {
-    center: [50, 30],
-    zoom: 4,
+    center: [55, 40],
+    zoom: 3,
     minZoom: 2,
-    maxZoom: 8,
+    maxZoom: 18,
     zoomControl: false,
     attributionControl: false,
     worldCopyJump: true,
@@ -115,7 +140,72 @@ export function initMap(container, { onSelect }) {
   });
 
   L.control.zoom({ position: "topleft" }).addTo(map);
-  buildGraticule().addTo(map);
+  const attribution = L.control.attribution({ position: "bottomleft", prefix: false }).addTo(map);
+
+  const vectorLayer = L.tileLayer(VECTOR_TILES, { subdomains: "abcd", maxZoom: 20, attribution: VECTOR_ATTR });
+  const satelliteLayer = L.tileLayer(SATELLITE_TILES, { maxZoom: 19, attribution: SATELLITE_ATTR });
+  const graticuleLayer = buildGraticule();
+
+  const control = document.createElement("div");
+  control.className = "basemap-control";
+  const btnMap = document.createElement("button");
+  btnMap.type = "button";
+  btnMap.className = "basemap-btn is-active";
+  btnMap.textContent = "Карта";
+  const btnSat = document.createElement("button");
+  btnSat.type = "button";
+  btnSat.className = "basemap-btn";
+  btnSat.textContent = "Спутник";
+  control.append(btnMap, btnSat);
+  container.parentElement.append(control);
+
+  const badge = document.createElement("div");
+  badge.className = "dive-badge hidden";
+  const badgeName = document.createElement("span");
+  badgeName.className = "dive-badge-name";
+  const badgeKey = document.createElement("span");
+  badgeKey.className = "dive-badge-key";
+  badgeKey.textContent = "Esc";
+  const badgeHint = document.createElement("span");
+  badgeHint.className = "dive-badge-hint";
+  badgeHint.textContent = "— назад";
+  badge.append(badgeName, badgeKey, badgeHint);
+  badge.addEventListener("click", () => escapeDive());
+  container.parentElement.append(badge);
+
+  let mode = "vector";
+
+  function setMode(next) {
+    if (mode === next) {
+      return;
+    }
+    mode = next;
+    if (mode === "satellite") {
+      map.removeLayer(vectorLayer);
+      satelliteLayer.addTo(map);
+      map.removeLayer(graticuleLayer);
+      container.classList.add("is-satellite");
+      btnMap.classList.remove("is-active");
+      btnSat.classList.add("is-active");
+    } else {
+      map.removeLayer(satelliteLayer);
+      vectorLayer.addTo(map);
+      graticuleLayer.addTo(map);
+      container.classList.remove("is-satellite");
+      btnMap.classList.add("is-active");
+      btnSat.classList.remove("is-active");
+    }
+    attribution.removeAttribution(VECTOR_ATTR);
+    attribution.removeAttribution(SATELLITE_ATTR);
+    attribution.addAttribution(mode === "satellite" ? SATELLITE_ATTR : VECTOR_ATTR);
+  }
+
+  btnMap.addEventListener("click", () => setMode("vector"));
+  btnSat.addEventListener("click", () => setMode("satellite"));
+
+  vectorLayer.addTo(map);
+  graticuleLayer.addTo(map);
+  attribution.addAttribution(VECTOR_ATTR);
 
   const cityLayer = L.layerGroup();
   for (const [name, lat, lon] of MAJOR_CITIES) {
@@ -134,52 +224,9 @@ export function initMap(container, { onSelect }) {
   }
   cityLayer.addTo(map);
 
-  let geoLayer = null;
-  const worldGeoUrl = new URL("../assets/world-50m.geojson", import.meta.url).href;
-  fetch(worldGeoUrl)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Не удалось загрузить карту");
-      }
-      return response.json();
-    })
-    .then((collection) => {
-      geoLayer = L.geoJSON(collection, {
-        style: countryStyle,
-        onEachFeature: (feature, layer) => {
-          const name = feature.properties && feature.properties.name;
-          if (name) {
-            layer.bindTooltip(String(name), { sticky: true, className: "country-tip" });
-          }
-          layer.on({
-            mouseover: (event) => event.target.setStyle(highlightStyle()),
-            mouseout: (event) => geoLayer && geoLayer.resetStyle(event.target)
-          });
-        }
-      }).addTo(map);
-    })
-    .catch(() => {
-      window.dispatchEvent(new CustomEvent("map:error"));
-    });
-
-  const updateCityVisibility = () => {
-    if (map.getZoom() >= 4) {
-      if (!map.hasLayer(cityLayer)) {
-        cityLayer.addTo(map);
-      }
-    } else if (map.hasLayer(cityLayer)) {
-      cityLayer.remove();
-    }
-  };
-  map.on("zoomend", updateCityVisibility);
-  updateCityVisibility();
-
+  const diveStack = [];
+  let divedId = null;
   let fieldMarker = null;
-  map.on("click", (event) => {
-    const latlng = event.latlng;
-    placeFieldMarker(latlng);
-    onSelect({ lat: latlng.lat, lon: latlng.lng });
-  });
 
   function placeFieldMarker(latlng) {
     if (fieldMarker) {
@@ -193,6 +240,159 @@ export function initMap(container, { onSelect }) {
     });
     fieldMarker = L.marker(latlng, { icon, keyboard: false, zIndexOffset: 500 }).addTo(map);
   }
+
+  function spawnRipple(latlng) {
+    const icon = L.divIcon({
+      className: "click-ripple",
+      html: "<i></i><i></i>",
+      iconSize: [0, 0]
+    });
+    const marker = L.marker(latlng, { icon, interactive: false, keyboard: false, zIndexOffset: 600 }).addTo(map);
+    setTimeout(() => marker.remove(), 950);
+  }
+
+  function showBadge(name, satellite) {
+    badgeName.textContent = name;
+    badgeHint.textContent = satellite ? "спутник · — назад" : "— назад";
+    badge.classList.remove("hidden");
+  }
+
+  function hideBadge() {
+    badge.classList.add("hidden");
+  }
+
+  function dive(feature, layer, intoSatellite) {
+    if (divedId === feature.id) {
+      return;
+    }
+    diveStack.push({ center: map.getCenter(), zoom: map.getZoom(), mode });
+    divedId = feature.id;
+    if (intoSatellite) {
+      setMode("satellite");
+    }
+    map.flyToBounds(layer.getBounds(), { padding: [46, 46], maxZoom: intoSatellite ? 11 : 7, duration: 1.4 });
+    showBadge(feature.name, intoSatellite);
+  }
+
+  function escapeDive() {
+    if (diveStack.length === 0) {
+      return;
+    }
+    const prev = diveStack.pop();
+    divedId = null;
+    hideBadge();
+    setMode(prev.mode);
+    map.flyTo(prev.center, prev.zoom, { duration: 1.1 });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      escapeDive();
+    }
+  });
+
+  let countriesLayer = null;
+  fetch(assetUrl("assets/world-50m.geojson"))
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить карту");
+      }
+      return response.json();
+    })
+    .then((collection) => {
+      countriesLayer = L.geoJSON(collection, {
+        style: countryStyle,
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties && feature.properties.name;
+          if (name) {
+            layer.bindTooltip(String(name), { sticky: true, className: "country-tip", direction: "top", opacity: 1 });
+          }
+          bindHover(layer, countriesLayer);
+          layer.on("click", (event) => {
+            L.DomEvent.stopPropagation(event);
+            placeFieldMarker(event.latlng);
+            onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
+            spawnRipple(event.latlng);
+            dive(feature, layer, false);
+          });
+        }
+      }).addTo(map);
+    })
+    .catch(() => {
+      window.dispatchEvent(new CustomEvent("map:error"));
+    });
+
+  let regionsLayer = null;
+  let regionsReady = false;
+  let regionsVisible = false;
+  fetch(assetUrl("assets/russia-regions.geojson"))
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить регионы");
+      }
+      return response.json();
+    })
+    .then((collection) => {
+      regionsLayer = L.geoJSON(collection, {
+        style: regionStyle,
+        onEachFeature: (feature, layer) => {
+          const name = feature.properties && feature.properties.name;
+          if (name) {
+            layer.bindTooltip(String(name), { sticky: true, className: "region-tip", direction: "top", opacity: 1 });
+          }
+          bindHover(layer, regionsLayer);
+          layer.on("click", (event) => {
+            L.DomEvent.stopPropagation(event);
+            placeFieldMarker(event.latlng);
+            onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
+            spawnRipple(event.latlng);
+            dive(feature, layer, true);
+          });
+        }
+      });
+      regionsReady = true;
+      updateRegionVisibility();
+    })
+    .catch(() => {
+      regionsReady = false;
+    });
+
+  function updateRegionVisibility() {
+    if (!regionsReady || !regionsLayer) {
+      return;
+    }
+    const show = map.getZoom() >= 5;
+    if (show && !regionsVisible) {
+      regionsLayer.addTo(map);
+      regionsVisible = true;
+    } else if (!show && regionsVisible) {
+      map.removeLayer(regionsLayer);
+      regionsVisible = false;
+    }
+  }
+
+  map.on("zoomend", updateRegionVisibility);
+
+  map.on("click", (event) => {
+    placeFieldMarker(event.latlng);
+    onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
+    spawnRipple(event.latlng);
+  });
+
+  const updateCityVisibility = () => {
+    if (map.getZoom() >= 4) {
+      if (!map.hasLayer(cityLayer)) {
+        cityLayer.addTo(map);
+      }
+    } else if (map.hasLayer(cityLayer)) {
+      cityLayer.remove();
+    }
+  };
+  map.on("zoomend", updateCityVisibility);
+  updateCityVisibility();
+
+  map.setView([18, 18], 2, { animate: false });
+  setTimeout(() => map.flyTo([55, 40], 3.4, { duration: 2 }), 140);
 
   return {
     map,

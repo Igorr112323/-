@@ -1,5 +1,5 @@
 import { loadDatabaseBytes, saveDatabaseBytes } from "./storage.js";
-import { uid } from "./util.js";
+import { assetUrl, uid } from "./util.js";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS varieties (
@@ -106,7 +106,7 @@ export async function openDatabase() {
   }
   sqlFactory = globalThis.initSqlJs;
   const SQL = await sqlFactory({
-    locateFile: (file) => new URL(`../vendor/sqljs/${file}`, import.meta.url).href
+    locateFile: (file) => assetUrl(`vendor/sqljs/${file}`)
   });
   const storedBytes = await loadDatabaseBytes();
   if (storedBytes && storedBytes.length > 0) {

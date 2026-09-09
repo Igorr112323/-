@@ -179,3 +179,7 @@ export function round(value, digits = 0) {
 export function formatInteger(value) {
   return Math.round(value).toLocaleString("ru-RU");
 }
+
+export function assetUrl(relativePath) {
+  return new URL(relativePath, document.baseURI).href;
+}

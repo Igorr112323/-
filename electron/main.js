@@ -86,6 +86,20 @@ function createWindow() {
     }
   });
 
+  if (app.isPackaged) {
+    mainWindow.removeMenu();
+    mainWindow.webContents.on("devtools-opened", () => {
+      mainWindow.webContents.closeDevTools();
+    });
+    mainWindow.webContents.on("before-input-event", (event, input) => {
+      const key = String(input.key).toUpperCase();
+      const blocked = key === "F12" || ((input.control || input.meta) && input.shift && (key === "I" || key === "J" || key === "C"));
+      if (blocked) {
+        event.preventDefault();
+      }
+    });
+  }
+
   mainWindow.loadURL(`${SCHEME}://${HOST}/src/index.html`);
 }
 

@@ -9,7 +9,7 @@ const STEPS = [
   "Построение модели прогноза"
 ];
 
-const DURATION = 1700;
+const DURATION = 1500;
 
 function easeInOutCubic(value) {
   return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
@@ -62,8 +62,8 @@ export function runLoading({ title = "Загрузка погодных данн
   }
 
   return new Promise((resolve) => {
-    function frame(nowTime) {
-      const elapsed = nowTime - startedAt;
+    function frame() {
+      const elapsed = Date.now() - startedAt;
       const progress = easeInOutCubic(elapsed / DURATION);
       update(progress);
       if (elapsed >= DURATION) {
@@ -72,7 +72,7 @@ export function runLoading({ title = "Загрузка погодных данн
         setTimeout(() => {
           overlay.classList.add("hidden");
           resolve();
-        }, 420);
+        }, 240);
         return;
       }
       requestAnimationFrame(frame);

@@ -2588,3 +2588,164 @@ svg {
   font-weight: 700;
   color: var(--gold);
 }
+
+.leaflet-overlay-pane path {
+  transition: fill 0.18s ease, stroke 0.18s ease, fill-opacity 0.18s ease, stroke-width 0.18s ease;
+}
+
+.map-glow {
+  filter: drop-shadow(0 0 6px rgba(255, 197, 61, 0.55));
+}
+
+.basemap-control {
+  position: absolute;
+  left: 20px;
+  top: 104px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(10, 19, 13, 0.82);
+  border: 1px solid var(--stroke-strong);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+}
+
+.basemap-btn {
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  transition: background 0.18s var(--ease-out), color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+}
+
+.basemap-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.basemap-btn.is-active {
+  color: #231700;
+  background: linear-gradient(180deg, #ffd873, #f0a81c);
+  box-shadow: 0 4px 14px rgba(240, 168, 28, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dive-badge {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(10, 19, 13, 0.86);
+  border: 1px solid rgba(255, 197, 61, 0.35);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  animation: fadeSlideUp 0.35s var(--ease-out) both;
+}
+
+.dive-badge-name {
+  font-size: 13px;
+  font-weight: 700;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dive-badge-key {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--stroke);
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+
+.dive-badge-hint {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.click-ripple {
+  background: none !important;
+  border: none !important;
+}
+
+.click-ripple i {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 197, 61, 0.75);
+  animation: rippleOut 0.9s var(--ease-out) forwards;
+}
+
+.click-ripple i:nth-child(2) {
+  animation-delay: 0.14s;
+  border-color: rgba(255, 197, 61, 0.42);
+}
+
+.leaflet-tooltip.region-tip {
+  background: rgba(20, 16, 8, 0.94);
+  border: 1px solid rgba(255, 197, 61, 0.45);
+  color: var(--gold);
+  border-radius: 9px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+}
+
+.leaflet-tooltip.region-tip::before {
+  display: none;
+}
+
+.dot-region {
+  background: var(--gold);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.leaflet-tile-pane {
+  transition: opacity 0.45s var(--ease-out);
+}
+
+.leaflet-control-attribution {
+  background: rgba(10, 19, 13, 0.72) !important;
+  color: var(--text-faint) !important;
+  font-size: 10px !important;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.leaflet-control-attribution a {
+  color: var(--text-dim) !important;
+}
+
+.map-legend {
+  bottom: 46px;
+}
+
+@keyframes rippleOut {
+  from {
+    transform: scale(0.3);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
