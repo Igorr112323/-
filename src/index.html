@@ -44,27 +44,19 @@
     <main id="stage">
       <section class="view is-active" id="view-map">
         <div id="map"></div>
-        <div class="map-hex-overlay"></div>
-        <div class="map-glitch-overlay"></div>
-        <div class="map-hud-telemetry" id="telemetry-hud">
-          <div class="telemetry-title">● СИСТЕМА СПУТНИКОВОГО МОНИТОРИНГА</div>
-          <div class="telemetry-val">ШИР: <span id="tel-lat">--.----</span></div>
-          <div class="telemetry-val">ДОЛ: <span id="tel-lon">--.----</span></div>
-          <div class="telemetry-status" id="tel-status">ОЖИДАНИЕ ЦЕЛИ...</div>
-        </div>
         <div class="map-hint" id="map-hint">
           <span class="hint-ping"></span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
           <div class="hint-body">
             <span class="hint-title">Выберите точку в России</span>
-            <span class="hint-sub">Кликните по городу или региону (регионы открывают спутниковый вид)</span>
+            <span class="hint-sub">Прогноз доступен только на территории РФ</span>
           </div>
         </div>
         <div class="map-legend" id="map-legend">
           <div class="legend-title">Обозначения</div>
           <div class="legend-row"><span class="legend-dot dot-field"></span><span>Выбранная точка</span></div>
-          <div class="legend-row"><span class="legend-dot dot-city"></span><span>Крупные города</span></div>
-          <div class="legend-row"><span class="legend-dot dot-region"></span><span>Регионы России</span></div>
+          <div class="legend-row"><span class="legend-dot dot-city"></span><span>Города</span></div>
+          <div class="legend-row"><span class="legend-dot dot-region"></span><span>Регионы</span></div>
         </div>
         <aside class="panel" id="panel">
           <div class="panel-head">

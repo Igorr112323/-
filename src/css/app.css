@@ -2597,85 +2597,21 @@ svg {
   filter: drop-shadow(0 0 6px rgba(255, 197, 61, 0.55));
 }
 
-.basemap-control {
-  position: absolute;
-  left: 20px;
-  top: 104px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 14px;
-  background: rgba(10, 19, 13, 0.82);
-  border: 1px solid var(--stroke-strong);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-md);
-}
 
-.basemap-btn {
-  padding: 9px 14px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-dim);
-  transition: background 0.18s var(--ease-out), color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
-}
 
-.basemap-btn:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.07);
-}
 
-.basemap-btn.is-active {
-  color: #231700;
-  background: linear-gradient(180deg, #ffd873, #f0a81c);
-  box-shadow: 0 4px 14px rgba(240, 168, 28, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
 
-.dive-badge {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 9px 16px;
-  border-radius: 999px;
-  background: rgba(10, 19, 13, 0.86);
-  border: 1px solid rgba(255, 197, 61, 0.35);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-md);
-  cursor: pointer;
-  animation: fadeSlideUp 0.35s var(--ease-out) both;
-}
 
-.dive-badge-name {
-  font-size: 13px;
-  font-weight: 700;
-  max-width: 320px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.dive-badge-key {
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid var(--stroke);
-  color: var(--gold);
-  letter-spacing: 0.04em;
-}
 
-.dive-badge-hint {
-  font-size: 11.5px;
-  color: var(--text-dim);
-}
+
+
+
+
+
+
+
+
 
 .click-ripple {
   background: none !important;
@@ -2791,164 +2727,112 @@ svg {
   transform: scale(0.94);
 }
 
-.map-hex-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='40' height='69.28203230275509' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 11.547L40 23.094L20 34.641L0 23.094L0 11.547L20 0L40 11.547ZM20 46.188L20 57.735L0 69.282L-20 57.735L-20 46.188L0 34.641L20 46.188ZM60 46.188L60 57.735L40 69.282L20 57.735L20 46.188L40 34.641L60 46.188Z' fill='none' stroke='rgba(255,255,255,0.03)' stroke-width='1'/%3E%3C/svg%3E");
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
-.map-hud-telemetry {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 10;
-  pointer-events: none;
-  background: rgba(5, 10, 7, 0.7);
-  border-left: 2px solid var(--gold);
-  padding: 12px 16px;
-  border-radius: 0 8px 8px 0;
-  backdrop-filter: blur(8px);
-  font-family: monospace;
-  color: var(--gold);
-  text-shadow: 0 0 8px rgba(255, 197, 61, 0.5);
-  animation: panelIn 0.5s ease-out both;
-}
 
-.telemetry-title {
-  font-size: 10px;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-  letter-spacing: 0.1em;
-  text-shadow: none;
-  font-family: var(--font);
-}
 
-.telemetry-val {
-  font-size: 14px;
-  font-weight: bold;
-}
 
-.telemetry-status {
-  font-size: 11px;
-  margin-top: 6px;
-  color: var(--green);
-  animation: blinkDot 1.5s infinite;
-  text-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
-}
-
-.region-path {
-  stroke-dasharray: 6 12;
-  animation: dashMarch 20s linear infinite;
-}
-
-@keyframes dashMarch {
-  to { stroke-dashoffset: -200; }
-}
-
-.out-of-bounds {
-  position: absolute;
-  z-index: 600;
-  color: var(--red);
-  font-weight: bold;
-  font-family: monospace;
-  font-size: 14px;
-  white-space: nowrap;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  text-shadow: 0 0 10px var(--red);
-  animation: errorFloat 1s ease-out forwards;
-}
-
-@keyframes errorFloat {
-  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
   100% { opacity: 0; transform: translate(-50%, -80%) scale(1.2); }
 }
 
-.tactical-icon-wrap {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
+
+.is-glitching ~ 
+
+
+  50% { opacity: 0.5; background: var(--gold); transform: scale(1.02); }
+  100% { opacity: 0; }
+}
+
+.sat-out-of-bounds {
+  position: absolute;
+  z-index: 600;
+  transform: translate(-50%, -50%);
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  animation: satErrorFloat 1.2s ease-out forwards;
+}
+
+@keyframes satErrorFloat {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.9); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(0.95); }
+}
+
+.beacon-wrap {
   background: none !important;
   border: none !important;
 }
 
-.tactical-marker {
-  position: relative;
-  width: 60px;
-  height: 60px;
+.beacon-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   pointer-events: none;
 }
 
-.tm-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px solid var(--gold);
-  box-shadow: inset 0 0 10px rgba(255, 197, 61, 0.3), 0 0 10px rgba(255, 197, 61, 0.3);
-}
-
-.tm-r1 {
-  border-style: dashed;
-  animation: spin 4s linear infinite;
-}
-
-.tm-r2 {
-  inset: 10px;
-  border-width: 2px;
-  border-color: var(--green);
-  animation: spin 3s linear infinite reverse;
-  opacity: 0.7;
-}
-
-.tm-cross {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 4px;
-  height: 4px;
+.beacon-core {
+  width: 12px;
+  height: 12px;
   background: #fff;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 8px #fff;
+  box-shadow: 0 0 10px #fff, 0 0 20px var(--gold);
+  z-index: 2;
 }
 
-.tm-label {
+.beacon-ring {
   position: absolute;
-  left: 65px;
-  top: 20px;
-  color: var(--gold);
-  font-family: monospace;
-  font-size: 11px;
-  white-space: nowrap;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 4px 8px;
-  border-left: 2px solid var(--gold);
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  animation: beaconPulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
-.tactical-marker-drop {
-  animation: lockOnDrop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-@keyframes lockOnDrop {
-  0% { transform: scale(4); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.map-glitch-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 400;
-  pointer-events: none;
-  background: #fff;
-  mix-blend-mode: overlay;
-  opacity: 0;
-}
-
-.is-glitching ~ .map-glitch-overlay {
-  animation: glitchFlash 0.3s ease-out;
-}
-
-@keyframes glitchFlash {
-  0% { opacity: 0.8; background: var(--green); }
-  50% { opacity: 0.5; background: var(--gold); transform: scale(1.02); }
-  100% { opacity: 0; }
+@keyframes beaconPulse {
+  0% { transform: scale(0.3); opacity: 1; border-width: 2px; }
+  100% { transform: scale(1.5); opacity: 0; border-width: 1px; }
 }
