@@ -1,6 +1,6 @@
 import { el, emit, formatFullDate, formatSignedCoord } from "./util.js";
 
-const SVG_NS = "http:
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 function makeSvg(tag, attributes) {
   const node = document.createElementNS(SVG_NS, tag);
