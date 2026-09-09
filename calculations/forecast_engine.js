@@ -39,10 +39,12 @@ function round(value, digits = 1) {
 export function generateForecast(request) {
   const { lat, lon, varietyName, rangeMonths, targetDate } = request;
 
-  const startDate = new Date();
-  startDate.setHours(0, 0, 0, 0);
   const endDate = new Date(targetDate);
   endDate.setHours(23, 59, 59, 999);
+  
+  const startDate = new Date(endDate);
+  startDate.setMonth(startDate.getMonth() - rangeMonths);
+  startDate.setHours(0, 0, 0, 0);
 
   const totalDays = Math.max(1, Math.round((endDate - startDate) / 86400000) + 1);
   const seed = hashString(`${Number(lat).toFixed(2)}|${Number(lon).toFixed(2)}|${isoOf(endDate)}`);

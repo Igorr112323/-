@@ -3,8 +3,9 @@ import { el, svgIcon, addMonths } from "./util.js";
 const MONTHS_SHORT = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
 
 export function computeForecastRange(today, rangeMonths) {
-  const min = new Date(today.getFullYear(), today.getMonth(), 1);
-  const last = addMonths(min, rangeMonths);
+  const min = new Date(1990, 0, 1);
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const last = addMonths(currentMonthStart, rangeMonths);
   const max = new Date(last.getFullYear(), last.getMonth() + 1, 0);
   return { min, max };
 }

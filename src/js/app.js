@@ -54,8 +54,8 @@ function handlePointSelect(point) {
 
 function clampDateToRange() {
   const today = new Date();
-  const minMonth = today.getFullYear() * 12 + today.getMonth();
-  const maxMonth = minMonth + state.rangeMonths;
+  const minMonth = 1990 * 12;
+  const maxMonth = (today.getFullYear() * 12 + today.getMonth()) + state.rangeMonths;
   const current = state.selectedDate.getFullYear() * 12 + state.selectedDate.getMonth();
   const clamped = Math.min(maxMonth, Math.max(minMonth, current));
   state.selectedDate = new Date(Math.floor(clamped / 12), (clamped % 12) + 1, 0);
