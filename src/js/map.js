@@ -1,45 +1,15 @@
 import * as L from "../vendor/leaflet/leaflet-src.esm.js";
 import { assetUrl } from "./util.js";
 
-const RUSSIAN_CITIES = [
-  ["Москва", 55.7558, 37.6173],
-  ["Санкт-Петербург", 59.9311, 30.3609],
-  ["Новосибирск", 55.0084, 82.9357],
-  ["Екатеринбург", 56.8389, 60.6057],
-  ["Казань", 55.7963, 49.1088],
-  ["Нижний Новгород", 56.3269, 44.0059],
-  ["Челябинск", 55.1644, 61.4368],
-  ["Красноярск", 56.0153, 92.8932],
-  ["Самара", 53.2001, 50.15],
-  ["Уфа", 54.7388, 55.9721],
-  ["Ростов-на-Дону", 47.2313, 39.7233],
-  ["Омск", 54.9885, 73.3242],
-  ["Краснодар", 45.0393, 38.9872],
-  ["Воронеж", 51.672, 39.1843],
-  ["Пермь", 58.0105, 56.2502],
-  ["Волгоград", 48.708, 44.5133]
-];
-
 const SATELLITE_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const SATELLITE_ATTR = "© Esri · Maxar · Earthstar Geographics";
 
 function regionStyle() {
-  return { color: "rgba(255, 255, 255, 0.4)", weight: 1.2, fillColor: "rgba(255, 255, 255, 0)", fillOpacity: 0 };
+  return { color: "transparent", weight: 0, fillColor: "transparent" };
 }
 
 function hoverStyle() {
-  return { color: "#ffc53d", weight: 2, fillColor: "rgba(255, 197, 61, 0.15)", fillOpacity: 1 };
-}
-
-function bindHover(layer, baseStyleFn) {
-  layer.on({
-    mouseover: (event) => {
-      event.target.setStyle(hoverStyle());
-    },
-    mouseout: (event) => {
-      event.target.setStyle(baseStyleFn());
-    }
-  });
+  return { color: "#10b981", weight: 1.5, fillColor: "rgba(16, 185, 129, 0.15)", fillOpacity: 1 };
 }
 
 export function initMap(container, { onSelect }) {
@@ -63,31 +33,19 @@ export function initMap(container, { onSelect }) {
   const attribution = L.control.attribution({ position: "bottomleft", prefix: false }).addTo(map);
   attribution.addAttribution(SATELLITE_ATTR);
 
-  const satelliteLayer = L.tileLayer(SATELLITE_TILES, { maxZoom: 19, attribution: SATELLITE_ATTR }).addTo(map);
+  L.tileLayer(SATELLITE_TILES, { maxZoom: 19, attribution: SATELLITE_ATTR }).addTo(map);
 
-  const cityLayer = L.layerGroup();
-  for (const [name, lat, lon] of RUSSIAN_CITIES) {
-    const icon = L.divIcon({
-      className: "city-dot",
-      html: `<span class="city-dot-inner"></span>`,
-      iconSize: [11, 11],
-      iconAnchor: [5.5, 5.5]
-    });
-    const marker = L.marker([lat, lon], { icon, interactive: true, keyboard: false }).bindTooltip(name, {
-      direction: "top",
-      offset: [0, -6],
-      opacity: 1,
-      className: "country-tip"
-    }).addTo(cityLayer);
+  const btnOverview = document.createElement("button");
+  btnOverview.className = "btn-secondary btn-overview";
+  btnOverview.textContent = "Обзор России";
+  btnOverview.type = "button";
+  btnOverview.onclick = () => map.flyTo([60, 90], 3.5, { duration: 1.5 });
+  container.appendChild(btnOverview);
 
-    marker.on("click", (event) => {
-      L.DomEvent.stopPropagation(event);
-      placeFieldMarker(event.latlng);
-      onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
-      spawnRipple(event.latlng);
-    });
-  }
-  cityLayer.addTo(map);
+  const staticInfo = document.createElement("div");
+  staticInfo.className = "map-static-info";
+  staticInfo.textContent = "Выбор участка доступен только на территории России";
+  container.appendChild(staticInfo);
 
   let fieldMarker = null;
 
@@ -96,86 +54,140 @@ export function initMap(container, { onSelect }) {
       fieldMarker.remove();
     }
     const html = `
-    <div class="beacon-marker">
-      <div class="beacon-ring"></div>
-      <div class="beacon-core"></div>
+    <div class="beacon-marker-v2">
+      <div class="bm-ring"></div>
+      <div class="bm-core"></div>
     </div>`;
     const icon = L.divIcon({
       className: "beacon-wrap",
       html,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
     });
     fieldMarker = L.marker(latlng, { icon, keyboard: false, zIndexOffset: 500 }).addTo(map);
   }
 
-  function spawnRipple(latlng) {
-    const icon = L.divIcon({
-      className: "click-ripple",
-      html: "<i></i><i></i>",
-      iconSize: [0, 0]
-    });
+  function spawnEffects(latlng) {
+    const html = `
+      <div class="ripple-v2"></div>
+      <div class="success-float-lbl">Участок выбран</div>
+    `;
+    const icon = L.divIcon({ className: "ripple-icon", html, iconSize: [0, 0] });
     const marker = L.marker(latlng, { icon, interactive: false, keyboard: false, zIndexOffset: 600 }).addTo(map);
-    setTimeout(() => marker.remove(), 950);
+    setTimeout(() => marker.remove(), 1500);
   }
 
-  let regionsLayer = null;
-  let regionsReady = false;
+  let hoverTimeout = null;
+  let currentFeatureName = "";
+  let currentLatLng = null;
+  let isDragging = false;
+
+  map.on("dragstart", () => { isDragging = true; container.classList.remove("is-hovering-russia"); hc.classList.remove("is-visible"); });
+  map.on("dragend", () => { isDragging = false; });
+
+  const hc = document.createElement('div');
+  hc.className = 'hover-card';
+  container.appendChild(hc);
+
+  let animFrame = null;
   
+  function updateHcContent() {
+    if (!currentLatLng) return;
+    const lat = currentLatLng.lat.toFixed(2);
+    const lon = currentLatLng.lng.toFixed(2);
+    hc.innerHTML = `
+      <div class="hc-title">${currentFeatureName}</div>
+      <div class="hc-sub">Регион России</div>
+      <div class="hc-coords">${lat}° с. ш. · ${lon}° в. д.</div>
+      <div class="hc-action">Нажмите, чтобы выбрать участок</div>
+    `;
+  }
+
+  function handleMouseMove(e) {
+    if (isDragging) return;
+    currentLatLng = e.latlng;
+    if (hc.classList.contains('is-visible')) {
+      if (animFrame) cancelAnimationFrame(animFrame);
+      animFrame = requestAnimationFrame(() => {
+        updateHcContent();
+        const pt = map.latLngToContainerPoint(currentLatLng);
+        hc.style.transform = `translate(${pt.x + 15}px, ${pt.y + 15}px)`;
+      });
+    }
+  }
+
   fetch(assetUrl("assets/russia-regions.geojson"))
     .then((response) => {
-      if (!response.ok) {
-        throw new Error("Не удалось загрузить регионы");
-      }
+      if (!response.ok) throw new Error("Не удалось загрузить регионы");
       return response.json();
     })
     .then((collection) => {
-      regionsLayer = L.geoJSON(collection, {
+      let holes = [];
+      collection.features.forEach(f => {
+        if (f.geometry.type === "Polygon") {
+          holes.push(f.geometry.coordinates[0]);
+        } else if (f.geometry.type === "MultiPolygon") {
+          f.geometry.coordinates.forEach(poly => holes.push(poly[0]));
+        }
+      });
+      const inverted = {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [[-360, -90], [360, -90], [360, 90], [-360, 90], [-360, -90]],
+            ...holes
+          ]
+        }
+      };
+      L.geoJSON(inverted, {
+        style: { fillColor: '#000', fillOpacity: 0.35, weight: 1, color: '#10b981', className: 'world-mask', interactive: false }
+      }).addTo(map);
+
+      L.geoJSON(collection, {
         style: regionStyle,
         onEachFeature: (feature, layer) => {
-          const name = feature.properties && feature.properties.name;
-          if (name) {
-            layer.bindTooltip(String(name), { sticky: true, className: "region-tip", direction: "top", opacity: 1 });
-          }
-          bindHover(layer, regionStyle);
-          layer.on("click", (event) => {
-            L.DomEvent.stopPropagation(event);
-            placeFieldMarker(event.latlng);
-            onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
-            spawnRipple(event.latlng);
+          layer.on({
+            mouseover: (event) => {
+              if (isDragging) return;
+              event.target.setStyle(hoverStyle());
+              container.classList.add('is-hovering-russia');
+              currentFeatureName = feature.properties?.name || "Регион России";
+              clearTimeout(hoverTimeout);
+              hoverTimeout = setTimeout(() => {
+                if (isDragging) return;
+                hc.classList.add('is-visible');
+                updateHcContent();
+              }, 250);
+            },
+            mousemove: handleMouseMove,
+            mouseout: (event) => {
+              event.target.setStyle(regionStyle());
+              container.classList.remove('is-hovering-russia');
+              clearTimeout(hoverTimeout);
+              hoverTimeout = null;
+              hc.classList.remove('is-visible');
+            },
+            click: (event) => {
+              L.DomEvent.stopPropagation(event);
+              if (isDragging) return;
+              placeFieldMarker(event.latlng);
+              onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
+              spawnEffects(event.latlng);
+            }
           });
         }
       }).addTo(map);
-      regionsReady = true;
     })
-    .catch(() => {
-      regionsReady = false;
-    });
+    .catch(() => {});
 
   map.on("click", (event) => {
-    const el = document.createElement("div");
-    el.className = "sat-out-of-bounds";
-    el.innerHTML = "<span>Доступно только в РФ</span>";
-    const pt = map.latLngToContainerPoint(event.latlng);
-    el.style.left = pt.x + "px";
-    el.style.top = pt.y + "px";
-    container.appendChild(el);
-    setTimeout(() => el.remove(), 1200);
+    if (isDragging) return;
+    const icon = L.divIcon({ className: "error-icon", html: "<div class='error-float-lbl'>Выберите точку на территории России</div>", iconSize: [0, 0] });
+    const marker = L.marker(event.latlng, { icon, interactive: false, keyboard: false, zIndexOffset: 600 }).addTo(map);
+    setTimeout(() => marker.remove(), 1500);
   });
 
-  const updateCityVisibility = () => {
-    if (map.getZoom() >= 4) {
-      if (!map.hasLayer(cityLayer)) {
-        cityLayer.addTo(map);
-      }
-    } else if (map.hasLayer(cityLayer)) {
-      cityLayer.remove();
-    }
-  };
-  map.on("zoomend", updateCityVisibility);
-  updateCityVisibility();
-
-  // Cinematic initial fly-in
   map.setView([0, 90], 2, { animate: false });
   setTimeout(() => map.flyTo([60, 90], 3.5, { duration: 2.5 }), 140);
 

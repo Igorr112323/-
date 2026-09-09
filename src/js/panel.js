@@ -14,19 +14,16 @@ function setCoordsBox() {
   const lat = document.getElementById("coord-lat");
   const lon = document.getElementById("coord-lon");
 
-  const status = document.getElementById("coords-status");
   if (store.point) {
     box.classList.add("has-point");
     empty.classList.add("hidden");
     values.classList.remove("hidden");
     lat.textContent = `${formatCoord(store.point.lat)}°`;
     lon.textContent = `${formatCoord(store.point.lon)}°`;
-    status.textContent = "Точка выбрана — прогноз доступен";
   } else {
     box.classList.remove("has-point");
     empty.classList.remove("hidden");
     values.classList.add("hidden");
-    status.textContent = "Выберите точку, чтобы разблокировать прогноз";
   }
   syncForecastButton();
 }
@@ -117,8 +114,6 @@ export async function populateVarietySelect() {
 }
 
 function syncMetaCount(count) {
-  const pill = document.getElementById("meta-count");
-  pill.textContent = `${count} ${pluralize(count, "сорт", "сорта", "сортов")}`;
 }
 
 function pluralize(count, one, few, many) {
@@ -133,49 +128,7 @@ function pluralize(count, one, few, many) {
   return many;
 }
 
-export async function renderHistory() {
-  const list = document.getElementById("history-list");
-  const empty = document.getElementById("history-empty");
-  const items = await listForecasts(8);
-  list.replaceChildren();
-  empty.style.display = items.length === 0 ? "" : "none";
-
-  items.forEach((item, index) => {
-    const icon = el("span", { class: "history-ico" }, [svgIcon("M13 2 4 14h6l-1 8 9-12h-6z")]);
-    const title = el("span", { class: "history-title", text: item.variety_name || `${formatCoord(item.lat)}°, ${formatCoord(item.lon)}°` });
-    const sub = el("span", { class: "history-sub", text: `${formatShortDate(new Date(item.target_date))} · ${formatShortDate(new Date(item.created_at))}` });
-    const badge = el("span", { class: "history-badge", text: `${item.range_months} мес` });
-
-    const deleteButton = el(
-      "button",
-      {
-        class: "icon-btn",
-        type: "button",
-        title: "Удалить из истории",
-        onclick: async (event) => {
-          event.stopPropagation();
-          const confirmed = await confirmDialog({ title: "Удалить прогноз", message: "Удалить запись из истории прогнозов?" });
-          if (confirmed) {
-            await deleteForecast(item.id);
-            renderHistory();
-          }
-        }
-      },
-      [svgIcon("M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14")]
-    );
-
-    const row = el(
-      "div",
-      {
-        class: "history-item",
-        style: `animation-delay:${index * 40}ms`,
-        onclick: () => emit("history:open", item)
-      },
-      [icon, el("div", { class: "history-main" }, [title, sub]), badge, deleteButton]
-    );
-    list.append(row);
-  });
-}
+export async function renderHistory() {}
 
 export function initPanel(state, handlers) {
   store = state;
@@ -207,7 +160,6 @@ export function initPanel(state, handlers) {
     callbacks.onVarietyChange(store.varietyId, store.varietyName);
   });
 
-  document.getElementById("varieties-manage").addEventListener("click", () => emit("nav", { view: "varieties" }));
 
   document.getElementById("forecast-btn").addEventListener("click", () => {
     if (!store.point) {
@@ -216,11 +168,6 @@ export function initPanel(state, handlers) {
     callbacks.onForecast();
   });
 
-  const collapseButton = document.getElementById("panel-collapse");
-  const panel = document.getElementById("panel");
-  collapseButton.addEventListener("click", () => {
-    panel.classList.toggle("is-collapsed");
-  });
 
   window.addEventListener("resize", syncThumb);
 
