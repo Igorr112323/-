@@ -28,7 +28,18 @@ jobs:
             dist/*.exe
           if-no-files-found: error
       - name: Publish release
+        continue-on-error: true
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create v1.0.0 dist/*.exe --title "АгроПрогноз v1.0.0" --notes "Портативная сборка АгроПрогноз для Windows (x64)." --clobber
+        run: |
+          {
+            echo "### gh auth status"
+            gh auth status 2>&1
+            echo "### token permissions"
+            gh api repos/${{ github.repository }} --jq '.permissions' 2>&1
+            echo "### dist contents"
+            ls -la dist 2>&1
+            echo "### release create"
+            gh release create v1.0.0 dist/*.exe --title "АгроПрогноз v1.0.0" --notes "Портативная сборка АгроПрогноз для Windows (x64)." --clobber 2>&1
+          } | tee -a "$GITHUB_STEP_SUMMARY"
