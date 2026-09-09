@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -27,3 +27,8 @@ jobs:
           path: |
             dist/*.exe
           if-no-files-found: error
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create v1.0.0 dist/*.exe --title "АгроПрогноз v1.0.0" --notes "Портативная сборка АгроПрогноз для Windows (x64)." --clobber
