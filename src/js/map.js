@@ -80,17 +80,6 @@ const VECTOR_ATTR = "© OpenStreetMap contributors · © CARTO";
 const SATELLITE_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const SATELLITE_ATTR = "© Esri · Maxar · Earthstar Geographics";
 
-function buildGraticule() {
-  const lines = [];
-  for (let lat = -80; lat <= 80; lat += 10) {
-    lines.push(L.polyline([[lat, -180], [lat, 180]], { color: "rgba(255,255,255,0.05)", weight: 0.6, interactive: false }));
-  }
-  for (let lon = -180; lon <= 180; lon += 10) {
-    lines.push(L.polyline([[-85, lon], [85, lon]], { color: "rgba(255,255,255,0.05)", weight: 0.6, interactive: false }));
-  }
-  return L.layerGroup(lines);
-}
-
 function countryStyle() {
   return { color: "#8fbf9a", weight: 0.7, fillColor: "#163522", fillOpacity: 0.42 };
 }
@@ -144,7 +133,6 @@ export function initMap(container, { onSelect }) {
 
   const vectorLayer = L.tileLayer(VECTOR_TILES, { subdomains: "abcd", maxZoom: 20, attribution: VECTOR_ATTR });
   const satelliteLayer = L.tileLayer(SATELLITE_TILES, { maxZoom: 19, attribution: SATELLITE_ATTR });
-  const graticuleLayer = buildGraticule();
 
   const control = document.createElement("div");
   control.className = "basemap-control";
@@ -183,14 +171,12 @@ export function initMap(container, { onSelect }) {
     if (mode === "satellite") {
       map.removeLayer(vectorLayer);
       satelliteLayer.addTo(map);
-      map.removeLayer(graticuleLayer);
       container.classList.add("is-satellite");
       btnMap.classList.remove("is-active");
       btnSat.classList.add("is-active");
     } else {
       map.removeLayer(satelliteLayer);
       vectorLayer.addTo(map);
-      graticuleLayer.addTo(map);
       container.classList.remove("is-satellite");
       btnMap.classList.add("is-active");
       btnSat.classList.remove("is-active");
@@ -204,7 +190,6 @@ export function initMap(container, { onSelect }) {
   btnSat.addEventListener("click", () => setMode("satellite"));
 
   vectorLayer.addTo(map);
-  graticuleLayer.addTo(map);
   attribution.addAttribution(VECTOR_ATTR);
 
   const cityLayer = L.layerGroup();
@@ -303,10 +288,6 @@ export function initMap(container, { onSelect }) {
       countriesLayer = L.geoJSON(collection, {
         style: countryStyle,
         onEachFeature: (feature, layer) => {
-          const name = feature.properties && feature.properties.name;
-          if (name) {
-            layer.bindTooltip(String(name), { sticky: true, className: "country-tip", direction: "top", opacity: 1 });
-          }
           bindHover(layer, countriesLayer);
           layer.on("click", (event) => {
             L.DomEvent.stopPropagation(event);

@@ -1,4 +1,4 @@
-import { el, svgIcon, emit, formatCoord, formatFullDate, formatShortDate } from "./util.js";
+import { el, svgIcon, emit, formatCoord, formatMonthYear, formatShortDate } from "./util.js";
 import { createCalendar, computeForecastRange } from "./calendar.js";
 import { confirmDialog } from "./ui.js";
 import { listVarieties, listForecasts, deleteForecast } from "./db.js";
@@ -63,8 +63,13 @@ function refreshCalendarIfOpen() {
   buildCalendar();
 }
 
+function closeCalendar() {
+  calendarOpen = false;
+  document.getElementById("calendar-wrap").classList.remove("is-open");
+  document.getElementById("date-button").classList.remove("is-open");
+}
+
 function buildCalendar() {
-  const wrap = document.getElementById("calendar-wrap");
   const calendarRoot = document.getElementById("calendar");
   const note = document.getElementById("calendar-note");
   const { min, max } = computeForecastRange(new Date(), store.rangeMonths);
@@ -79,18 +84,16 @@ function buildCalendar() {
         store.selectedDate = date;
         callbacks.onDateChange(date);
         refreshDateButton();
+        closeCalendar();
       }
     })
   );
-  note.textContent = `Доступный период: ${formatFullDate(min)} — ${formatFullDate(max)}`;
+  note.textContent = `Доступный период: ${formatMonthYear(min)} — ${formatMonthYear(max)}`;
 }
 
 function refreshDateButton() {
-  const button = document.getElementById("date-button");
   const value = document.getElementById("date-value");
-  const today = new Date();
-  const isToday = store.selectedDate.toDateString() === today.toDateString();
-  value.textContent = isToday ? "Сегодня" : formatFullDate(store.selectedDate);
+  value.textContent = formatMonthYear(store.selectedDate);
 }
 
 export async function populateVarietySelect() {

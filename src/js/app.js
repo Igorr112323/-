@@ -1,4 +1,4 @@
-import { on, emit, addMonths, toISODate } from "./util.js";
+import { on, emit, toISODate } from "./util.js";
 import { openDatabase, addForecast } from "./db.js";
 import { initMap } from "./map.js";
 import { initPanel, updatePanel, populateVarietySelect, renderHistory } from "./panel.js";
@@ -13,7 +13,7 @@ import { generateForecast } from "../../calculations/forecast_engine.js";
 const state = {
   point: null,
   rangeMonths: 1,
-  selectedDate: new Date(),
+  selectedDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
   varietyId: null,
   varietyName: null
 };
@@ -54,13 +54,11 @@ function handlePointSelect(point) {
 
 function clampDateToRange() {
   const today = new Date();
-  const max = addMonths(new Date(today.getFullYear(), today.getMonth(), today.getDate()), state.rangeMonths);
-  if (state.selectedDate > max) {
-    state.selectedDate = max;
-  }
-  if (state.selectedDate < today) {
-    state.selectedDate = today;
-  }
+  const minMonth = today.getFullYear() * 12 + today.getMonth();
+  const maxMonth = minMonth + state.rangeMonths;
+  const current = state.selectedDate.getFullYear() * 12 + state.selectedDate.getMonth();
+  const clamped = Math.min(maxMonth, Math.max(minMonth, current));
+  state.selectedDate = new Date(Math.floor(clamped / 12), (clamped % 12) + 1, 0);
 }
 
 async function handleForecast() {
