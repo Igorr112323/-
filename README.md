@@ -35,7 +35,12 @@ npm start                # запуск Electron-приложения
 npm run dist:win         # сборка portable EXE (требуется Windows)
 ```
 
-Windows-исполняемый файл `AgroPrognoz-<версия>-portable.exe` собирается автоматически через GitHub Actions при пуше в ветку `arena/01a0854d-repo` и доступен на вкладке Actions (артефакт `AgroPrognoz-Windows-x64`).
+Windows-исполняемый файл `AgroPrognoz-<версия>-portable.exe` собирается автоматически через GitHub Actions при пуше в ветку `arena/01a0854d-repo`.
+
+Скачать готовую сборку:
+
+- GitHub Releases: https://github.com/Igorr112323/-/releases/tag/v1.0.0
+- Вкладка Actions (артефакт `AgroPrognoz-Windows-x64`)
 
 ## Папка расчётов
 
