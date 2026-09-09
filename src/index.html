@@ -10,36 +10,45 @@
 </head>
 <body>
   <div id="app">
-    <header id="topbar">
+    <aside id="sidebar">
       <div class="brand">
-        <img class="brand-logo" src="./assets/icon.png" alt="" draggable="false" />
+        <img class="brand-logo" src="./assets/icon.png" alt="АгроПрогноз" draggable="false" />
         <div class="brand-text">
-          <span class="brand-name">Агро<span class="brand-accent">Прогноз</span></span>
-          <span class="brand-tag">Прогноз погоды для кукурузы</span>
+          <span class="brand-name">АгроПрогноз</span>
+          <span class="brand-tag">Кукуруза</span>
         </div>
       </div>
-      <nav class="topnav" id="topnav">
+      
+      <nav class="sidenav" id="sidenav">
         <button class="nav-btn is-active" id="nav-map" type="button">
           <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
-          <span>Карта</span>
+          <span class="nav-text">Карта</span>
         </button>
         <button class="nav-btn" id="nav-data" type="button">
           <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-          <span>Данные</span>
+          <span class="nav-text">Данные</span>
         </button>
         <button class="nav-btn" id="nav-reports" type="button">
           <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M9 13h6M9 17h6M14 2v5h5"/></svg>
-          <span>Отчёты</span>
+          <span class="nav-text">Отчёты</span>
         </button>
         <button class="nav-btn" id="nav-varieties" type="button">
           <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 12h7v8h-7zM4 15h7v5H4z"/></svg>
-          <span>Сорта</span>
+          <span class="nav-text">Сорта</span>
         </button>
       </nav>
-      <div class="topbar-meta">
-        <span class="meta-pill" id="meta-count">0 сортов</span>
+
+      <div class="sidebar-bottom">
+        <button class="nav-btn nav-btn-sub" id="nav-about" type="button">
+          <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4 M12 8h.01"/></svg>
+          <span class="nav-text">О приложении</span>
+        </button>
+        <div class="demo-badge">
+          <span class="demo-dot"></span>
+          <span>Демо-режим</span>
+        </div>
       </div>
-    </header>
+    </aside>
 
     <main id="stage">
       <section class="view is-active" id="view-map">
@@ -48,106 +57,99 @@
           <span class="hint-ping"></span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
           <div class="hint-body">
-            <span class="hint-title">Выберите точку в России</span>
-            <span class="hint-sub">Прогноз доступен только на территории РФ</span>
+            <span class="hint-title">Выберите участок на карте</span>
+            <span class="hint-sub">Нажмите на нужное место, чтобы настроить прогноз</span>
           </div>
         </div>
-        <div class="map-legend" id="map-legend">
-          <div class="legend-title">Обозначения</div>
-          <div class="legend-row"><span class="legend-dot dot-field"></span><span>Выбранная точка</span></div>
-          <div class="legend-row"><span class="legend-dot dot-city"></span><span>Города</span></div>
-          <div class="legend-row"><span class="legend-dot dot-region"></span><span>Регионы</span></div>
-        </div>
+        
         <aside class="panel" id="panel">
           <div class="panel-head">
-            <div class="panel-head-title">
-              <span class="panel-kicker">Настройки прогноза</span>
-              <h2 class="panel-title">Параметры точки</h2>
-            </div>
-            <button class="icon-btn" id="panel-collapse" type="button" title="Свернуть панель">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v16M15 4v16M9 12h12"/></svg>
-            </button>
+            <h2 class="panel-title">Новый прогноз</h2>
           </div>
 
           <div class="panel-body" id="panel-body">
             <div class="panel-section" id="coords-section">
-              <label class="section-label">Координаты точки</label>
+              <label class="section-label">Участок</label>
               <div class="coords-box" id="coords-box">
-                <span class="coords-empty" id="coords-empty">Точка не выбрана</span>
+                <div class="coords-empty" id="coords-empty">Точка не выбрана<br/><small>Нажмите на карту</small></div>
                 <div class="coords-values hidden" id="coords-values">
                   <div class="coord-row"><span class="coord-axis">Широта</span><span class="coord-num" id="coord-lat">—</span></div>
                   <div class="coord-row"><span class="coord-axis">Долгота</span><span class="coord-num" id="coord-lon">—</span></div>
                 </div>
               </div>
-              <div class="coords-status" id="coords-status">Выберите точку, чтобы разблокировать прогноз</div>
             </div>
 
             <div class="panel-section">
-              <label class="section-label">Дальность прогноза</label>
+              <label class="section-label">Сорт кукурузы</label>
+              <select id="variety-select" class="select input-field"></select>
+            </div>
+
+            <div class="panel-section">
+              <label class="section-label">Период</label>
               <div class="seg" id="range-seg">
                 <div class="seg-thumb" id="seg-thumb"></div>
-                <button class="seg-btn is-active" data-range="1" type="button"><b>1</b><span>месяц</span></button>
-                <button class="seg-btn" data-range="3" type="button"><b>3</b><span>месяца</span></button>
-                <button class="seg-btn" data-range="6" type="button"><b>6</b><span>месяцев</span></button>
+                <button class="seg-btn is-active" data-range="1" type="button">1 месяц</button>
+                <button class="seg-btn" data-range="3" type="button">3 месяца</button>
+                <button class="seg-btn" data-range="6" type="button">6 месяцев</button>
               </div>
             </div>
 
             <div class="panel-section">
-              <label class="section-label">Дата прогноза</label>
-              <button class="date-button" id="date-button" type="button">
+              <label class="section-label">Дата начала</label>
+              <button class="date-button input-field" id="date-button" type="button">
                 <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3.5 8h17M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
                 <span id="date-value">Сегодня</span>
                 <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
               </button>
               <div class="calendar-wrap" id="calendar-wrap">
                 <div id="calendar"></div>
-                <div class="calendar-note" id="calendar-note"></div>
-              </div>
-            </div>
-
-            <div class="panel-section">
-              <label class="section-label">Сорт культуры</label>
-              <div class="select-row">
-                <select id="variety-select" class="select"></select>
-                <button class="icon-btn" id="varieties-manage" type="button" title="Управление сортами">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                </button>
               </div>
             </div>
 
             <button class="btn-primary" id="forecast-btn" type="button" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
               <span>Спрогнозировать</span>
-              <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
-
-            <div class="panel-section history-section" id="history-section">
-              <label class="section-label">История прогнозов</label>
-              <div class="history-list" id="history-list"></div>
-              <div class="history-empty" id="history-empty">Пока нет прогнозов</div>
-            </div>
+            <div class="btn-hint" id="forecast-btn-hint">Выберите точку на карте</div>
           </div>
         </aside>
       </section>
 
       <section class="view" id="view-results"></section>
-      <section class="view" id="view-data"></section>
-      <section class="view" id="view-reports"></section>
-      <section class="view" id="view-varieties"></section>
+      <section class="view view-scroll" id="view-data"></section>
+      <section class="view view-scroll" id="view-reports"></section>
+      <section class="view view-scroll" id="view-varieties"></section>
+      <section class="view view-scroll" id="view-about">
+        <div class="page-container about-page">
+          <div class="about-card">
+            <div class="brand">
+              <img class="brand-logo" src="./assets/icon.png" alt="" draggable="false" />
+              <div class="brand-text">
+                <span class="brand-name">АгроПрогноз</span>
+                <span class="brand-tag">Кукуруза</span>
+              </div>
+            </div>
+            <div class="about-content">
+              <h3>Интерактивный каркас</h3>
+              <p>Это приложение является демонстрационным интерфейсом (прототипом). Расчётный модуль погоды не подключён, используются демонстрационные данные. Цель каркаса — показать работу интерфейса, навигацию, сохранение отчётов и взаимодействие с картой.</p>
+              
+              <h4>Источники геоданных</h4>
+              <p>Границы стран: Natural Earth (50m)<br/>Регионы России: Natural Earth (10m, admin-1)<br/>Спутниковые снимки: Esri World Imagery</p>
+
+              <h4>Управление данными</h4>
+              <p>Вы можете очистить все созданные демонстрационные отчёты и сбросить базу сортов к исходному состоянию.</p>
+              <button class="btn-secondary" id="btn-reset-demo" type="button">Восстановить демо-данные</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
   <div class="overlay hidden" id="loading-overlay">
     <div class="load-card">
-      <div class="load-radar" id="load-radar">
-        <img src="./assets/icon.png" alt="" draggable="false" />
-        <span class="ring ring-1"></span>
-        <span class="ring ring-2"></span>
-        <span class="ring ring-3"></span>
-      </div>
-      <h2 class="load-title" id="load-title">Загрузка погодных данных</h2>
+      <div class="load-spinner"></div>
+      <h2 class="load-title" id="load-title">Подготавливаем демонстрационный прогноз</h2>
       <div class="load-bar"><div class="load-fill" id="load-fill"></div></div>
-      <div class="load-percent" id="load-percent">0%</div>
       <ul class="load-steps" id="load-steps"></ul>
     </div>
   </div>

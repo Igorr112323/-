@@ -15,32 +15,17 @@ export function createCalendar({ min, max, selected, onSelect }) {
   const maxYear = max.getFullYear();
   const selYear = selected.getFullYear();
   const selMonth = selected.getMonth();
-  const todayYear = new Date().getFullYear();
-  const todayMonth = new Date().getMonth();
 
   let viewYear = selYear;
 
-  const yearSelect = el("select", { class: "cal-select", "aria-label": "Год" });
-  for (let year = minYear; year <= maxYear; year += 1) {
-    yearSelect.append(el("option", { value: String(year), text: String(year) }));
-  }
-
-  const monthGrid = el("div", { class: "month-grid" });
+  const titleNode = el("span", { class: "cal-title" });
+  const monthGrid = el("div", { class: "cal-grid" });
   const root = el("div", { class: "calendar" });
 
-  const navButton = (step, path, title) =>
-    el(
-      "button",
-      { class: "calendar-nav", type: "button", title, onclick: () => shiftYear(step) },
-      [svgIcon(path)]
-    );
+  const btnPrev = el("button", { class: "cal-btn", type: "button", onclick: () => shiftYear(-1) }, [svgIcon("M15 18l-6-6 6-6")]);
+  const btnNext = el("button", { class: "cal-btn", type: "button", onclick: () => shiftYear(1) }, [svgIcon("M9 6l6 6-6 6")]);
 
-  const head = el("div", { class: "calendar-head" }, [
-    navButton(-1, "M15 18l-6-6 6-6", "Предыдущий год"),
-    el("div", { class: "calendar-selects" }, [yearSelect]),
-    navButton(1, "M9 6l6 6-6 6", "Следующий год")
-  ]);
-
+  const head = el("div", { class: "cal-head" }, [btnPrev, titleNode, btnNext]);
   root.append(head, monthGrid);
 
   const endOfMonth = (year, month) => new Date(year, month + 1, 0);
@@ -50,30 +35,27 @@ export function createCalendar({ min, max, selected, onSelect }) {
     render();
   }
 
-  yearSelect.addEventListener("change", () => {
-    viewYear = Number(yearSelect.value);
-    render();
-  });
-
   function render() {
-    yearSelect.value = String(viewYear);
+    titleNode.textContent = viewYear;
+    btnPrev.disabled = viewYear <= minYear;
+    btnNext.disabled = viewYear >= maxYear;
+    
     monthGrid.replaceChildren();
 
     for (let month = 0; month < 12; month += 1) {
       const eom = endOfMonth(viewYear, month);
       const disabled = eom < min || eom > max;
-      const isToday = viewYear === todayYear && month === todayMonth;
       const isSelected = viewYear === selYear && month === selMonth;
-      const cell = el(
-        "button",
-        {
-          class: ["month-cell", disabled ? "is-disabled" : "", isToday ? "is-today" : "", isSelected ? "is-selected" : ""].filter(Boolean).join(" "),
-          type: "button",
-          text: MONTHS_SHORT[month],
-          disabled: disabled ? "true" : null
-        }
-      );
-      if (!disabled) {
+      
+      const cell = el("button", {
+        class: `cal-cell ${isSelected ? 'is-active' : ''}`,
+        type: "button",
+        text: MONTHS_SHORT[month]
+      });
+      
+      if (disabled) {
+        cell.disabled = true;
+      } else {
         cell.addEventListener("click", () => onSelect(eom));
       }
       monthGrid.append(cell);
