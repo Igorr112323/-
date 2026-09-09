@@ -1,69 +1,23 @@
 import * as L from "../vendor/leaflet/leaflet-src.esm.js";
 import { assetUrl } from "./util.js";
 
-const MAJOR_CITIES = [
+const RUSSIAN_CITIES = [
   ["Москва", 55.7558, 37.6173],
   ["Санкт-Петербург", 59.9311, 30.3609],
-  ["Киев", 50.4501, 30.5234],
-  ["Минск", 53.9006, 27.559],
-  ["Варшава", 52.2297, 21.0122],
-  ["Берлин", 52.52, 13.405],
-  ["Париж", 48.8566, 2.3522],
-  ["Лондон", 51.5074, -0.1278],
-  ["Мадрид", 40.4168, -3.7038],
-  ["Рим", 41.9028, 12.4964],
-  ["Амстердам", 52.3676, 4.9041],
-  ["Вена", 48.2082, 16.3738],
-  ["Прага", 50.0755, 14.4378],
-  ["Будапешт", 47.4979, 19.0402],
-  ["Бухарест", 44.4268, 26.1025],
-  ["София", 42.6977, 23.3219],
-  ["Стамбул", 41.0082, 28.9784],
-  ["Анкара", 39.9334, 32.8597],
-  ["Каир", 30.0444, 31.2357],
-  ["Лагос", 6.5244, 3.3792],
-  ["Найроби", -1.2921, 36.8219],
-  ["Йоханнесбург", -26.2041, 28.0473],
-  ["Кейптаун", -33.9249, 18.4241],
-  ["Нью-Йорк", 40.7128, -74.006],
-  ["Чикаго", 41.8781, -87.6298],
-  ["Лос-Анджелес", 34.0522, -118.2437],
-  ["Мехико", 19.4326, -99.1332],
-  ["Сан-Паулу", -23.5505, -46.6333],
-  ["Буэнос-Айрес", -34.6037, -58.3816],
-  ["Лима", -12.0464, -77.0428],
-  ["Богота", 4.711, -74.0721],
-  ["Каракас", 10.4806, -66.9036],
-  ["Торонто", 43.6532, -79.3832],
-  ["Монреаль", 45.5017, -73.5673],
-  ["Ванкувер", 49.2827, -123.1207],
-  ["Рейкьявик", 64.1466, -21.9426],
-  ["Стокгольм", 59.3293, 18.0686],
-  ["Осло", 59.9139, 10.7522],
-  ["Хельсинки", 60.1699, 24.9384],
-  ["Копенгаген", 55.6761, 12.5683],
-  ["Лиссабон", 38.7223, -9.1393],
-  ["Афины", 37.9838, 23.7275],
-  ["Тель-Авив", 32.0853, 34.7818],
-  ["Дубай", 25.2048, 55.2708],
-  ["Тегеран", 35.6892, 51.389],
-  ["Карачи", 24.8607, 67.0011],
-  ["Мумбаи", 19.076, 72.8777],
-  ["Дели", 28.6139, 77.209],
-  ["Дакка", 23.8103, 90.4125],
-  ["Бангкок", 13.7563, 100.5018],
-  ["Джакарта", -6.2088, 106.8456],
-  ["Сингапур", 1.3521, 103.8198],
-  ["Гонконг", 22.3193, 114.1694],
-  ["Шанхай", 31.2304, 121.4737],
-  ["Пекин", 39.9042, 116.4074],
-  ["Сеул", 37.5665, 126.978],
-  ["Токио", 35.6762, 139.6503],
-  ["Осака", 34.6937, 135.5023],
-  ["Сидней", -33.8688, 151.2093],
-  ["Мельбурн", -37.8136, 144.9631],
-  ["Окленд", -36.8509, 174.7645],
-  ["Гонолулу", 21.3069, -157.8583]
+  ["Новосибирск", 55.0084, 82.9357],
+  ["Екатеринбург", 56.8389, 60.6057],
+  ["Казань", 55.7963, 49.1088],
+  ["Нижний Новгород", 56.3269, 44.0059],
+  ["Челябинск", 55.1644, 61.4368],
+  ["Красноярск", 56.0153, 92.8932],
+  ["Самара", 53.2001, 50.15],
+  ["Уфа", 54.7388, 55.9721],
+  ["Ростов-на-Дону", 47.2313, 39.7233],
+  ["Омск", 54.9885, 73.3242],
+  ["Краснодар", 45.0393, 38.9872],
+  ["Воронеж", 51.672, 39.1843],
+  ["Пермь", 58.0105, 56.2502],
+  ["Волгоград", 48.708, 44.5133]
 ];
 
 const FIELD_MARKER_HTML = `
@@ -92,7 +46,7 @@ function glowStyle() {
   return { color: "#ffc53d", weight: 1.6, fillColor: "#ffc53d", fillOpacity: 0.32 };
 }
 
-function bindHover(layer, layerRef) {
+function bindHover(layer, baseStyleFn) {
   layer.on({
     mouseover: (event) => {
       event.target.setStyle(glowStyle());
@@ -102,7 +56,7 @@ function bindHover(layer, layerRef) {
       }
     },
     mouseout: (event) => {
-      layerRef.resetStyle(event.target);
+      event.target.setStyle(baseStyleFn());
       const node = event.target.getElement();
       if (node) {
         node.classList.remove("map-glow");
@@ -193,19 +147,26 @@ export function initMap(container, { onSelect }) {
   attribution.addAttribution(VECTOR_ATTR);
 
   const cityLayer = L.layerGroup();
-  for (const [name, lat, lon] of MAJOR_CITIES) {
+  for (const [name, lat, lon] of RUSSIAN_CITIES) {
     const icon = L.divIcon({
       className: "city-dot",
       html: `<span class="city-dot-inner"></span>`,
-      iconSize: [7, 7],
-      iconAnchor: [3.5, 3.5]
+      iconSize: [11, 11],
+      iconAnchor: [5.5, 5.5]
     });
-    L.marker([lat, lon], { icon, interactive: true, keyboard: false }).bindTooltip(name, {
+    const marker = L.marker([lat, lon], { icon, interactive: true, keyboard: false }).bindTooltip(name, {
       direction: "top",
       offset: [0, -6],
       opacity: 1,
       className: "country-tip"
     }).addTo(cityLayer);
+
+    marker.on("click", (event) => {
+      L.DomEvent.stopPropagation(event);
+      placeFieldMarker(event.latlng);
+      onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
+      spawnRipple(event.latlng);
+    });
   }
   cityLayer.addTo(map);
 
@@ -288,12 +249,9 @@ export function initMap(container, { onSelect }) {
       countriesLayer = L.geoJSON(collection, {
         style: countryStyle,
         onEachFeature: (feature, layer) => {
-          bindHover(layer, countriesLayer);
+          bindHover(layer, countryStyle);
           layer.on("click", (event) => {
             L.DomEvent.stopPropagation(event);
-            placeFieldMarker(event.latlng);
-            onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
-            spawnRipple(event.latlng);
             dive(feature, layer, false);
           });
         }
@@ -321,7 +279,7 @@ export function initMap(container, { onSelect }) {
           if (name) {
             layer.bindTooltip(String(name), { sticky: true, className: "region-tip", direction: "top", opacity: 1 });
           }
-          bindHover(layer, regionsLayer);
+          bindHover(layer, regionStyle);
           layer.on("click", (event) => {
             L.DomEvent.stopPropagation(event);
             placeFieldMarker(event.latlng);
@@ -355,8 +313,6 @@ export function initMap(container, { onSelect }) {
   map.on("zoomend", updateRegionVisibility);
 
   map.on("click", (event) => {
-    placeFieldMarker(event.latlng);
-    onSelect({ lat: event.latlng.lat, lon: event.latlng.lng });
     spawnRipple(event.latlng);
   });
 
