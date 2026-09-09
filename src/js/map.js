@@ -39,7 +39,7 @@ function countryStyle() {
 }
 
 function regionStyle() {
-  return { color: "#6e8d75", weight: 0.6, fillColor: "#1d3a28", fillOpacity: 0.3 };
+  return { color: "#6e8d75", weight: 0.6, fillColor: "#1d3a28", fillOpacity: 0.3, className: "region-path" };
 }
 
 function glowStyle() {
@@ -135,6 +135,11 @@ export function initMap(container, { onSelect }) {
       btnMap.classList.add("is-active");
       btnSat.classList.remove("is-active");
     }
+    
+    container.classList.remove("is-glitching");
+    void container.offsetWidth;
+    container.classList.add("is-glitching");
+    
     attribution.removeAttribution(VECTOR_ATTR);
     attribution.removeAttribution(SATELLITE_ATTR);
     attribution.addAttribution(mode === "satellite" ? SATELLITE_ATTR : VECTOR_ATTR);
@@ -178,13 +183,26 @@ export function initMap(container, { onSelect }) {
     if (fieldMarker) {
       fieldMarker.remove();
     }
+    const html = `
+    <div class="tactical-marker tactical-marker-drop">
+      <div class="tm-ring tm-r1"></div>
+      <div class="tm-ring tm-r2"></div>
+      <div class="tm-cross"></div>
+      <div class="tm-label">ЦЕЛЬ ЗАХВАЧЕНА<br/>${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}</div>
+    </div>`;
     const icon = L.divIcon({
-      className: "field-marker",
-      html: FIELD_MARKER_HTML,
-      iconSize: [44, 48],
-      iconAnchor: [22, 46]
+      className: "tactical-icon-wrap",
+      html,
+      iconSize: [60, 60],
+      iconAnchor: [30, 30]
     });
     fieldMarker = L.marker(latlng, { icon, keyboard: false, zIndexOffset: 500 }).addTo(map);
+    
+    const telStatus = document.getElementById("tel-status");
+    if (telStatus) {
+      telStatus.textContent = "ЦЕЛЬ ЗАХВАЧЕНА";
+      telStatus.style.color = "var(--gold)";
+    }
   }
 
   function spawnRipple(latlng) {
@@ -312,8 +330,25 @@ export function initMap(container, { onSelect }) {
 
   map.on("zoomend", updateRegionVisibility);
 
+  const telLat = document.getElementById("tel-lat");
+  const telLon = document.getElementById("tel-lon");
+
+  map.on("mousemove", (event) => {
+    if (telLat && telLon) {
+      telLat.textContent = event.latlng.lat.toFixed(4);
+      telLon.textContent = event.latlng.lng.toFixed(4);
+    }
+  });
+
   map.on("click", (event) => {
-    spawnRipple(event.latlng);
+    const el = document.createElement("div");
+    el.className = "out-of-bounds";
+    el.textContent = "ВНЕ ЗОНЫ ДОСТУПА";
+    const pt = map.latLngToContainerPoint(event.latlng);
+    el.style.left = pt.x + "px";
+    el.style.top = pt.y + "px";
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
   });
 
   const updateCityVisibility = () => {
