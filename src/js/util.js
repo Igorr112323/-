@@ -34,7 +34,7 @@ export function emit(event, payload) {
 
 export function el(tag, props = {}, children = []) {
   const node = document.createElement(tag);
-  for (const key of Object.keys(props)) {
+  for (const key of Object.keys(props || {})) {
     const value = props[key];
     if (key === "class") {
       node.className = value;
@@ -50,7 +50,8 @@ export function el(tag, props = {}, children = []) {
       node.setAttribute(key, value === true ? "" : value);
     }
   }
-  for (const child of children) {
+  const childArray = Array.isArray(children) ? children : (children ? [children] : []);
+  for (const child of childArray) {
     if (child === null || child === undefined) {
       continue;
     }
