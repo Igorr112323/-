@@ -1,12 +1,12 @@
-import { on, emit, toISODate } from "./util.js";
-import { openDatabase, addForecast } from "./db.js";
+import { on, emit, toISODate, el } from "./util.js";
+import { openDatabase, addDataset, unpackForecast } from "./db.js";
 import { initMap } from "./map.js";
 import { initPanel, updatePanel, populateVarietySelect, renderHistory } from "./panel.js";
 import { initVarietiesPage } from "./varieties.js";
 import { initReportsPage, refreshReports } from "./reports.js";
 import { initDataPage, refreshData } from "./data.js";
 import { runLoading } from "./loading.js";
-import { renderResults } from "./results.js";
+import { renderResults, bindResultsResize, onResultsShown } from "./results.js";
 import { showToast } from "./ui.js";
 import { generateForecast } from "../../calculations/forecast_engine.js";
 
@@ -19,6 +19,7 @@ const state = {
 };
 
 let mapHandle = null;
+let generating = false;
 
 function switchView(name) {
   document.querySelectorAll(".view").forEach((view) => {
@@ -38,6 +39,9 @@ function switchView(name) {
   }
   if (name === "reports") {
     refreshReports();
+  }
+  if (name === "results") {
+    onResultsShown();
   }
 }
 
@@ -62,9 +66,12 @@ function clampDateToRange() {
 }
 
 async function handleForecast() {
-  if (!state.point) {
+  if (!state.point || generating) {
     return;
   }
+  generating = true;
+  const forecastButton = document.getElementById("forecast-btn");
+  forecastButton.disabled = true;
   clampDateToRange();
   const request = {
     lat: state.point.lat,
@@ -74,56 +81,92 @@ async function handleForecast() {
     targetDate: toISODate(state.selectedDate)
   };
 
-  await runLoading({ title: "Загрузка погодных данных" });
-  let forecast = null;
   try {
-    forecast = generateForecast(request);
-    renderResults(forecast);
+    await runLoading({ title: "Загрузка погодных данных" });
+    let forecast = null;
+    try {
+      forecast = generateForecast(request);
+    } catch {
+      showToast("Не удалось построить прогноз", "error");
+      return;
+    }
+    renderResults(forecast, { varietyId: state.varietyId, savedRecord: null });
     switchView("results");
-  } catch {
-    showToast("Не удалось построить прогноз", "error");
-    return;
-  }
 
-  try {
-    await addForecast(
-      {
-        lat: request.lat,
-        lon: request.lon,
-        varietyId: state.varietyId || null,
-        varietyName: request.varietyName || "",
-        rangeMonths: request.rangeMonths,
-        targetDate: request.targetDate
-      },
-      forecast
-    );
-    renderHistory();
-  } catch (error) {
-    console.error(error);
-    showToast("Не удалось сохранить прогноз в историю", "error");
+    try {
+      await addDataset(
+        {
+          lat: request.lat,
+          lon: request.lon,
+          varietyName: request.varietyName || "",
+          rangeMonths: request.rangeMonths,
+          targetDate: request.targetDate
+        },
+        forecast
+      );
+      refreshData();
+    } catch {
+      showToast("Не удалось сохранить набор данных", "error");
+    }
+  } finally {
+    generating = false;
+    updatePanel();
   }
 }
 
 function openForecastFromHistory(record) {
   let forecast = null;
   if (record.data_json) {
+    forecast = unpackForecast(record.data_json);
+  }
+  if (!forecast) {
+    if (record.data_json) {
+      renderResults(null);
+      switchView("results");
+      return;
+    }
+    // Legacy records without a stored snapshot fall back to the engine (deterministic for the same request).
     try {
-      forecast = JSON.parse(record.data_json);
+      forecast = generateForecast({
+        lat: record.lat,
+        lon: record.lon,
+        varietyName: record.variety_name || null,
+        rangeMonths: record.range_months,
+        targetDate: record.target_date
+      });
     } catch {
       forecast = null;
     }
+    renderResults(forecast, { savedRecord: null });
+    switchView("results");
+    return;
   }
-  if (!forecast) {
-    forecast = generateForecast({
-      lat: record.lat,
-      lon: record.lon,
-      varietyName: record.variety_name || null,
-      rangeMonths: record.range_months,
-      targetDate: record.target_date
-    });
-  }
-  renderResults(forecast);
+  renderResults(forecast, { savedRecord: record });
   switchView("results");
+}
+
+function showPageInitError(sectionId, retry) {
+  const section = document.getElementById(sectionId);
+  if (!section) {
+    return;
+  }
+  const root = section.querySelector(".w-root");
+  if (!root) {
+    return;
+  }
+  root.replaceChildren(
+    el("div", { class: "w-page" }, [
+      el("div", { class: "w-panel", style: "border:1px solid var(--w-border, #DCE4DA)" }, [
+        el("div", { class: "w-state" }, [
+          el("h3", { text: "Раздел не удалось загрузить" }),
+          el("p", { text: "Проверьте доступность базы данных." }),
+          el("div", { class: "w-state-actions" }, [
+            el("button", { class: "w-btn w-btn--primary", type: "button", text: "Повторить", onclick: retry })
+          ])
+        ])
+      ])
+    ])
+  );
 }
 
 async function boot() {
@@ -162,6 +205,8 @@ async function boot() {
     showToast("Не удалось загрузить картографические данные", "error");
   });
 
+  bindResultsResize();
+
   try {
     await openDatabase();
   } catch {
@@ -169,16 +214,39 @@ async function boot() {
   }
 
   try {
-    await populateVarietySelect();
-    await renderHistory();
-    await initVarietiesPage();
-    await initReportsPage();
-    await initDataPage();
     mapHandle = initMap(document.getElementById("map"), { onSelect: handlePointSelect });
     switchView("map");
   } catch (error) {
     console.error(error);
     showToast("Произошла ошибка при запуске приложения", "error");
+  }
+
+  const pages = [
+    { section: "view-data", init: initDataPage },
+    { section: "view-reports", init: initReportsPage },
+    { section: "view-varieties", init: initVarietiesPage }
+  ];
+  for (const page of pages) {
+    try {
+      await page.init();
+    } catch (error) {
+      console.error(error);
+      showPageInitError(page.section, async () => {
+        try {
+          await openDatabase();
+          await page.init();
+        } catch {
+          showPageInitError(page.section, async () => {});
+        }
+      });
+    }
+  }
+
+  try {
+    await populateVarietySelect();
+    await renderHistory();
+  } catch (error) {
+    console.error(error);
   }
 }
 

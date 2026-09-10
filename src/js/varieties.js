@@ -1,16 +1,25 @@
-import { el, svgIcon, emit, debounce, formatShortDate } from "./util.js";
-import { openModal, showToast } from "./ui.js";
-import { listVarieties, createVariety, updateVariety, deleteVariety, validateVariety } from "./db.js";
+import { el, emit, debounce, formatShortDate, parseISODate, plural } from "./util.js";
+import { icon, iconButton } from "./icons.js";
+import { confirmDialog, openDialog, showToast } from "./ui.js";
+import { listVarieties, createVariety, updateVariety, deleteVariety } from "./db.js";
 
-let pageRoot = null;
-let gridNode = null;
-let searchNode = null;
-let countNode = null;
-let allVarieties = [];
-let query = "";
+const store = {
+  rows: [],
+  query: "",
+  ripening: "all",
+  error: false,
+  selectedId: null,
+  scroll: 0
+};
 
-function faoLabel(fao) {
+let rootNode = null;
+let renderToken = 0;
+
+function ripeningLabel(fao) {
   const value = Number(fao);
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
   if (value < 200) {
     return "Очень ранний";
   }
@@ -26,141 +35,440 @@ function faoLabel(fao) {
   return "Позднеспелый";
 }
 
-function buildVarietyCard(variety, index) {
-  const name = el("div", { class: "variety-name", text: variety.name });
-  const chip = el("span", { class: "fao-chip", text: `ФАО ${variety.fao}` });
-  const head = el("div", { class: "variety-head" }, [name, chip]);
+const RIPENING_OPTIONS = [
+  ["all", "Все группы"],
+  ["very-early", "Очень ранние (ФАО < 200)"],
+  ["early", "Раннеспелые (200–299)"],
+  ["mid-early", "Среднеранние (300–399)"],
+  ["mid", "Среднеспелые (400–499)"],
+  ["late", "Позднеспелые (500+)"]
+];
 
-  const desc = el("div", { class: "variety-desc", text: variety.description || "Описание не указано" });
-
-  const stats = el("div", { class: "variety-stats" }, [
-    el("div", { class: "variety-stat" }, [el("span", { class: "vstat-value", text: `${variety.gdd}` }), el("span", { class: "vstat-label", text: "САТ, °C·дн" })]),
-    el("div", { class: "variety-stat" }, [el("span", { class: "vstat-value", text: `${variety.gtk}` }), el("span", { class: "vstat-label", text: "ГТК" })]),
-    el("div", { class: "variety-stat" }, [el("span", { class: "vstat-value", text: `${variety.yield}` }), el("span", { class: "vstat-label", text: "ц/га" })])
-  ]);
-
-  const bars = el("div", { class: "variety-bars" }, [
-    el("div", { class: "vbar-row" }, [el("span", { text: "Засухоустойчивость" }), el("div", { class: "vbar-track" }, [el("div", { class: "vbar-fill", style: `width:0%`, dataset: { width: `${(variety.drought / 10) * 100}%` } })]), el("span", { class: "vbar-value", text: `${variety.drought}` })]),
-    el("div", { class: "vbar-row" }, [el("span", { text: "Холодостойкость" }), el("div", { class: "vbar-track" }, [el("div", { class: "vbar-fill", style: `width:0%`, dataset: { width: `${(variety.cold / 10) * 100}%` } })]), el("span", { class: "vbar-value", text: `${variety.cold}` })])
-  ]);
-
-  const editBtn = el("button", { class: "mini-btn", type: "button", onclick: () => openForm(variety) }, [svgIcon("M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"), el("span", { text: "Изменить" })]);
-  const deleteBtn = el("button", { class: "mini-btn danger", type: "button", onclick: () => confirmDelete(variety) }, [svgIcon("M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"), el("span", { text: "Удалить" })]);
-
-  const foot = el("div", { class: "variety-foot" }, [
-    el("span", { class: "variety-date", text: `Создан ${formatShortDate(new Date(variety.created_at))}` }),
-    el("div", { class: "variety-actions" }, [editBtn, deleteBtn])
-  ]);
-
-  const card = el("article", { class: "variety-card", style: `animation-delay:${index * 45}ms` }, [head, desc, stats, bars, foot]);
-  setTimeout(() => {
-    card.querySelectorAll(".vbar-fill").forEach((node) => {
-      node.style.width = node.dataset.width;
-    });
-  }, 120 + index * 45);
-  return card;
-}
-
-function renderList() {
-  const filtered = allVarieties.filter((variety) => variety.name.toLowerCase().includes(query));
-  countNode.textContent = `${filtered.length} из ${allVarieties.length}`;
-  gridNode.replaceChildren();
-
-  if (filtered.length === 0) {
-    const empty = el("div", { class: "empty-state" }, [
-      svgIcon("M12 21a7 7 0 0 1-7-7c0-4 7-11 7-11s7 7 7 11a7 7 0 0 1-7 7z"),
-      el("h3", { text: allVarieties.length === 0 ? "Сортов пока нет" : "Ничего не найдено" }),
-      el("p", { text: allVarieties.length === 0 ? "Добавьте первый сорт кукурузы, чтобы использовать его при прогнозировании." : "Попробуйте изменить поисковый запрос." })
-    ]);
-    gridNode.append(empty);
-    return;
+function ripeningMatch(fao, key) {
+  const value = Number(fao);
+  if (key === "all" || !Number.isFinite(value)) {
+    return key === "all";
   }
-  filtered.forEach((variety, index) => gridNode.append(buildVarietyCard(variety, index)));
+  if (key === "very-early") {
+    return value < 200;
+  }
+  if (key === "early") {
+    return value >= 200 && value < 300;
+  }
+  if (key === "mid-early") {
+    return value >= 300 && value < 400;
+  }
+  if (key === "mid") {
+    return value >= 400 && value < 500;
+  }
+  return value >= 500;
 }
 
-function buildField(label, hint, inputNode, errorNode, required = false) {
-  const labelNode = el("label", {}, [
-    el("span", { text: label }),
-    required ? el("span", { class: "req", text: " *" }) : null
+function filteredRows() {
+  const q = store.query.trim().toLowerCase();
+  let rows = store.rows;
+  if (q) {
+    rows = rows.filter((row) => String(row.name || "").toLowerCase().includes(q));
+  }
+  if (store.ripening !== "all") {
+    rows = rows.filter((row) => ripeningMatch(row.fao, store.ripening));
+  }
+  return rows;
+}
+
+function numberValue(value, digits = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return "—";
+  }
+  return num.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function selectWrap(select) {
+  const caret = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  caret.setAttribute("class", "w-select-caret");
+  caret.setAttribute("viewBox", "0 0 24 24");
+  caret.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M6 9l6 6 6-6");
+  caret.append(path);
+  return el("div", { class: "w-select-wrap" }, [select, caret]);
+}
+
+function toolbarNode() {
+  const searchInput = el("input", {
+    class: "w-input",
+    type: "text",
+    placeholder: "Поиск по названию…",
+    value: store.query,
+    "aria-label": "Поиск по названию сорта"
+  });
+  const searchClear = el("button", { class: "w-search-clear", type: "button", "aria-label": "Очистить поиск" }, [icon("close", "w-ico")]);
+  const searchBox = el("div", { class: `w-search${store.query ? " is-filled" : ""}` }, [icon("search", "w-ico"), searchInput, searchClear]);
+  searchInput.addEventListener("input", debounce(() => {
+    store.query = searchInput.value;
+    searchBox.classList.toggle("is-filled", Boolean(store.query));
+    render();
+  }, 120));
+  searchClear.addEventListener("click", () => {
+    store.query = "";
+    searchInput.value = "";
+    searchBox.classList.remove("is-filled");
+    render();
+  });
+
+  const ripeningSelect = el("select", { class: "w-select", "aria-label": "Фильтр по группе спелости" });
+  for (const [value, text] of RIPENING_OPTIONS) {
+    const option = el("option", { value, text });
+    if (store.ripening === value) {
+      option.selected = true;
+    }
+    ripeningSelect.append(option);
+  }
+  ripeningSelect.addEventListener("change", () => {
+    store.ripening = ripeningSelect.value;
+    render();
+  });
+
+  return el("div", { class: "w-toolbar" }, [
+    searchBox,
+    selectWrap(ripeningSelect),
+    el("span", { class: "w-spacer" }),
+    el("button", { class: "w-btn w-btn--primary", type: "button", onclick: () => openForm(null) }, [
+      icon("plus", "w-ico"), el("span", { text: "Добавить сорт" })
+    ])
   ]);
-  return el("div", { class: "field" }, [
-    labelNode,
-    inputNode,
-    errorNode,
-    hint ? el("span", { class: "field-hint", text: hint }) : null
+}
+
+function meterRow(label, value, max, variant) {
+  const num = Number(value);
+  const width = Number.isFinite(num) ? Math.max(0, Math.min(100, (num / max) * 100)) : 0;
+  return el("div", { class: `w-meter ${variant ? `w-meter--${variant}` : ""}` }, [
+    el("span", { class: "w-meter-label", text: label }),
+    el("div", { class: "w-meter-track" }, [el("div", { class: "w-meter-fill", style: `width:${width}%` })]),
+    el("span", { class: "w-meter-value", text: Number.isFinite(num) ? `${num}` : "—" })
   ]);
+}
+
+function kvRow(key, value) {
+  return [el("dt", { text: key }), el("dd", { text: value })];
+}
+
+function buildDetail(variety) {
+  const body = el("div", { class: "w-detail-body" });
+
+  const summary = el("dl", { class: "w-kv" });
+  summary.append(
+    ...kvRow("Группа спелости", ripeningLabel(variety.fao)),
+    ...kvRow("ФАО", numberValue(variety.fao)),
+    ...kvRow("Урожайность", `${numberValue(variety.yield, 1)} ц/га`)
+  );
+  body.append(el("div", { class: "w-group" }, [el("div", { class: "w-group-title", text: "Основные" }), summary]));
+
+  const temps = el("dl", { class: "w-kv" });
+  temps.append(
+    ...kvRow("Σ активных температур", `${numberValue(variety.gdd)} °C·сут`),
+    ...kvRow("ГТК", numberValue(variety.gtk, 2))
+  );
+  body.append(el("div", { class: "w-group" }, [el("div", { class: "w-group-title", text: "Требования к теплу и влаге" }), temps]));
+
+  const resistance = el("div", {}, [
+    meterRow("Засухоустойчивость", variety.drought, 10),
+    meterRow("Холодостойкость", variety.cold, 10, "blue")
+  ]);
+  body.append(el("div", { class: "w-group" }, [el("div", { class: "w-group-title", text: "Устойчивость (1–10)" }), resistance]));
+
+  const description = String(variety.description || "").trim();
+  if (description) {
+    body.append(el("div", { class: "w-group" }, [
+      el("div", { class: "w-group-title", text: "Примечания" }),
+      el("p", { style: "margin:0; font-size:13.5px; line-height:1.55; overflow-wrap:anywhere;", text: description })
+    ]));
+  }
+
+  const created = variety.created_at ? parseISODate(variety.created_at) : null;
+  const updated = variety.updated_at ? parseISODate(variety.updated_at) : null;
+  const dates = [];
+  if (created) {
+    dates.push(`Создан ${formatShortDate(created)}`);
+  }
+  if (updated && created && updated.getTime() !== created.getTime()) {
+    dates.push(` · изменён ${formatShortDate(updated)}`);
+  }
+
+  const head = el("div", { class: "w-detail-head" }, [
+    el("div", { style: "display:flex;align-items:flex-start;gap:10px" }, [
+      el("div", { style: "min-width:0;flex:1" }, [
+        el("div", { class: "w-detail-name", text: variety.name }),
+        el("div", { class: "w-detail-badges" }, [
+          el("span", { class: "w-badge w-badge--period", text: `ФАО ${numberValue(variety.fao)}` }),
+          el("span", { class: "w-badge w-badge--period", text: ripeningLabel(variety.fao) })
+        ])
+      ]),
+      iconButton("close", {
+        label: "Свернуть карточку",
+        className: "w-btn w-btn--sm w-btn--icon w-btn--ghost",
+        onclick: () => {
+          store.selectedId = null;
+          render();
+        }
+      })
+    ])
+  ]);
+
+  const foot = el("div", { class: "w-detail-foot" }, [
+    el("span", { class: "w-cell-sub", text: dates.join("") || "—" }),
+    el("div", { class: "w-row-actions" }, [
+      el("button", { class: "w-btn w-btn--sm w-btn--secondary", type: "button", onclick: () => openForm(variety) }, [
+        icon("edit", "w-ico"), el("span", { text: "Редактировать" })
+      ]),
+      el("button", { class: "w-btn w-btn--sm w-btn--danger-ghost", type: "button", onclick: () => confirmDelete(variety) }, [
+        icon("trash", "w-ico"), el("span", { text: "Удалить" })
+      ])
+    ])
+  ]);
+
+  return el("section", { class: "w-panel w-detail-card", "aria-label": "Карточка сорта" }, [head, body, foot]);
+}
+
+function buildListTable(rows) {
+  const table = el("table", { class: "w-table" });
+  const head = el("tr");
+  [
+    ["Сорт", false], ["Созревание", false], ["САТ, °C·сут", true], ["ГТК", true], ["Урож., ц/га", true], ["", true]
+  ].forEach(([text, right]) => {
+    head.append(el("th", { scope: "col", class: right ? "w-th-plain w-td-right" : "w-th-plain", text }));
+  });
+  table.append(el("thead", {}, [head]));
+
+  const body = el("tbody");
+  for (const variety of rows) {
+    const tr = el("tr", { class: store.selectedId === variety.id ? "is-selected" : "" });
+    const titleButton = el("button", { class: "w-link", type: "button", text: variety.name, onclick: () => selectVariety(variety.id) });
+    tr.append(
+      el("td", {}, [titleButton]),
+      el("td", {}, [
+        el("div", { text: ripeningLabel(variety.fao) }),
+        el("div", { class: "w-cell-sub", text: `ФАО ${numberValue(variety.fao)}` })
+      ]),
+      el("td", { class: "w-num w-td-right", text: numberValue(variety.gdd) }),
+      el("td", { class: "w-num w-td-right", text: numberValue(variety.gtk, 2) }),
+      el("td", { class: "w-num w-td-right", text: numberValue(variety.yield, 1) }),
+      el("td", { class: "w-td-actions" }, [
+        el("div", { class: "w-row-actions" }, [
+          iconButton("edit", { label: `Редактировать сорт ${variety.name}`, className: "w-btn w-btn--sm w-btn--icon w-btn--secondary", onclick: () => openForm(variety) }),
+          iconButton("trash", { label: `Удалить сорт ${variety.name}`, className: "w-btn w-btn--sm w-btn--icon w-btn--danger-ghost", onclick: () => confirmDelete(variety) })
+        ])
+      ])
+    );
+    tr.addEventListener("click", (event) => {
+      if (event.target.closest("button")) {
+        return;
+      }
+      selectVariety(variety.id);
+    });
+    body.append(tr);
+  }
+  table.append(body);
+  return el("section", { class: "w-panel" }, [el("div", { class: "w-table-scroll w-table-scroll--full" }, [table])]);
+}
+
+function selectVariety(id) {
+  store.selectedId = store.selectedId === id ? null : id;
+  render();
+}
+
+async function refresh() {
+  store.error = false;
+  try {
+    store.rows = await listVarieties();
+  } catch {
+    store.error = true;
+  }
+  if (!store.error && store.rows.length > 0 && !store.rows.some((row) => row.id === store.selectedId)) {
+    store.selectedId = store.rows[0].id;
+  }
+  render();
+}
+
+function render() {
+  const token = ++renderToken;
+  const view = document.getElementById("view-varieties");
+  requestAnimationFrame(() => {
+    if (token !== renderToken || !rootNode) {
+      return;
+    }
+    const wrap = el("div", { class: "w-page" });
+    const count = store.rows.length;
+    wrap.append(
+      el("div", { class: "w-head" }, [
+        el("div", {}, [
+          el("h1", { class: "w-h1", text: "Сорта кукурузы" }),
+          el("p", { class: "w-sub", text: count ? `${count} ${plural(count, "сорт", "сорта", "сортов")} в справочнике` : "Справочник сортов используется при прогнозировании" })
+        ])
+      ])
+    );
+    wrap.append(toolbarNode());
+
+    if (store.error) {
+      wrap.append(el("section", { class: "w-panel" }, [
+        el("div", { class: "w-state" }, [
+          el("span", { class: "w-state-ico" }, [icon("alert", "w-ico w-ico--lg")]),
+          el("h3", { text: "Не удалось загрузить сорта" }),
+          el("p", { text: "Проверьте доступность базы данных и повторите попытку." }),
+          el("div", { class: "w-state-actions" }, [
+            el("button", { class: "w-btn w-btn--primary", type: "button", text: "Повторить", onclick: () => refresh() })
+          ])
+        ])
+      ]));
+    } else if (count === 0) {
+      wrap.append(el("section", { class: "w-panel" }, [
+        el("div", { class: "w-state" }, [
+          el("span", { class: "w-state-ico" }, [icon("sprout", "w-ico w-ico--lg")]),
+          el("h3", { text: "Сортов пока нет" }),
+          el("p", { text: "Добавьте первый сорт, чтобы выбирать его при прогнозировании." }),
+          el("div", { class: "w-state-actions" }, [
+            el("button", { class: "w-btn w-btn--primary", type: "button", text: "Добавить сорт", onclick: () => openForm(null) }, )
+          ])
+        ])
+      ]));
+    } else {
+      const rows = filteredRows();
+      const selected = rows.find((row) => row.id === store.selectedId) || null;
+      if (rows.length === 0) {
+        wrap.append(el("section", { class: "w-panel" }, [
+          el("div", { class: "w-state" }, [
+            el("span", { class: "w-state-ico" }, [icon("search", "w-ico w-ico--lg")]),
+            el("h3", { text: "Ничего не найдено" }),
+            el("p", { text: "Измените запрос или сбросьте фильтры." }),
+            el("div", { class: "w-state-actions" }, [
+              el("button", {
+                class: "w-btn w-btn--secondary", type: "button", text: "Сбросить фильтры",
+                onclick: () => {
+                  store.query = "";
+                  store.ripening = "all";
+                  render();
+                }
+              })
+            ])
+          ])
+        ]));
+      } else if (selected) {
+        wrap.append(el("div", { class: "w-split" }, [
+          el("div", { class: "w-col", style: "min-width:0" }, [buildListTable(rows)]),
+          buildDetail(selected)
+        ]));
+      } else {
+        const list = buildListTable(rows);
+        wrap.append(list);
+      }
+    }
+
+    rootNode.replaceChildren(wrap);
+    if (view) {
+      view.scrollTop = store.scroll;
+    }
+  });
+}
+
+function updateRangeFill(input) {
+  const min = Number(input.min);
+  const max = Number(input.max);
+  const pos = ((Number(input.value) - min) / (max - min || 1)) * 100;
+  input.style.setProperty("--range-pos", `${pos}%`);
+}
+
+function buildField({ labelText, required = false, hint, control, errorNode, full = false }) {
+  const id = `fld-${Math.random().toString(36).slice(2, 8)}`;
+  control.id = id;
+  const label = el("label", { class: "w-label", for: id }, [
+    el("span", { text: labelText }),
+    required ? el("span", { class: "w-req", text: "*", "aria-hidden": "true" }) : null
+  ]);
+  if (required) {
+    control.setAttribute("aria-required", "true");
+  }
+  return el("div", { class: `w-field ${full ? "w-full" : ""}` }, [
+    label,
+    control,
+    errorNode || el("span", { class: "w-field-error" }),
+    hint ? el("span", { class: "w-hintline", text: hint }) : null
+  ]);
+}
+
+function confirmDelete(variety) {
+  confirmDialog({
+    title: "Удалить сорт",
+    message: el("p", {}, [
+      el("span", { text: `Удалить сорт «${variety.name}» из справочника? ` }),
+      el("b", { text: "Сохранённые отчёты не изменятся — они хранят свои копии данных." })
+    ]),
+    confirmLabel: "Удалить",
+    danger: true
+  }).then(async (ok) => {
+    if (!ok) {
+      return;
+    }
+    try {
+      const result = await deleteVariety(variety.id);
+      if (!result.ok) {
+        throw new Error("not found");
+      }
+      showToast("Сорт удалён", "success");
+      if (store.selectedId === variety.id) {
+        store.selectedId = null;
+      }
+      await refresh();
+      emit("varieties:changed");
+    } catch {
+      showToast("Не удалось удалить сорт. Попробуйте ещё раз.", "error");
+    }
+  });
 }
 
 function openForm(variety) {
   const isEdit = Boolean(variety);
-  const initial = variety || { name: "", fao: 300, gtk: 1.0, gdd: 1400, drought: 5, cold: 5, yield: 90, description: "" };
+  const initial = variety || { name: "", fao: 300, gtk: 1, gdd: 1400, drought: 5, cold: 5, yield: 90, description: "" };
 
-  const nameInput = el("input", { type: "text", value: initial.name, maxlength: "60", placeholder: "Например, Днепровский 181 СВ" });
-  const nameError = el("span", { class: "field-error" });
-  const faoInput = el("input", { type: "number", value: String(initial.fao), min: "100", max: "900", step: "10" });
-  const faoError = el("span", { class: "field-error" });
-  const gtkInput = el("input", { type: "number", value: String(initial.gtk), min: "0.1", max: "3", step: "0.05" });
-  const gtkError = el("span", { class: "field-error" });
-  const gddInput = el("input", { type: "number", value: String(initial.gdd), min: "0", max: "4000", step: "10" });
-  const gddError = el("span", { class: "field-error" });
-  const yieldInput = el("input", { type: "number", value: String(initial.yield), min: "1", max: "300", step: "0.1" });
-  const yieldError = el("span", { class: "field-error" });
-  const descriptionInput = el("textarea", { rows: "3", maxlength: "500", placeholder: "Краткое описание сорта" });
-  descriptionInput.value = initial.description;
-  const descriptionError = el("span", { class: "field-error" });
+  const nameInput = el("input", { class: "w-input", type: "text", value: String(initial.name || ""), maxlength: "60", placeholder: "Например, Днепровский 181 СВ", autocomplete: "off" });
+  const faoInput = el("input", { class: "w-input", type: "text", inputmode: "numeric", maxlength: "6", value: String(initial.fao ?? "") });
+  const gddInput = el("input", { class: "w-input", type: "text", inputmode: "numeric", maxlength: "7", value: String(initial.gdd ?? "") });
+  const gtkInput = el("input", { class: "w-input", type: "text", inputmode: "decimal", maxlength: "7", value: String(initial.gtk ?? "") });
+  const yieldInput = el("input", { class: "w-input", type: "text", inputmode: "decimal", maxlength: "7", value: String(initial.yield ?? "") });
+  const descriptionInput = el("textarea", { class: "w-input", rows: "3", maxlength: "500", placeholder: "Краткое описание сорта" });
+  descriptionInput.value = String(initial.description || "");
 
-  const droughtInput = el("input", { type: "range", min: "1", max: "10", step: "1", value: String(initial.drought) });
-  const droughtValue = el("span", { class: "range-value", text: String(initial.drought) });
-  const coldInput = el("input", { type: "range", min: "1", max: "10", step: "1", value: String(initial.cold) });
-  const coldValue = el("span", { class: "range-value", text: String(initial.cold) });
-
+  const droughtInput = el("input", { type: "range", min: "1", max: "10", step: "1", value: String(initial.drought ?? 5) });
+  const droughtValue = el("span", { class: "w-range-value", text: String(initial.drought ?? 5) });
+  const coldInput = el("input", { type: "range", min: "1", max: "10", step: "1", value: String(initial.cold ?? 5) });
+  const coldValue = el("span", { class: "w-range-value", text: String(initial.cold ?? 5) });
+  updateRangeFill(droughtInput);
+  updateRangeFill(coldInput);
   droughtInput.addEventListener("input", () => {
     droughtValue.textContent = droughtInput.value;
+    updateRangeFill(droughtInput);
   });
   coldInput.addEventListener("input", () => {
     coldValue.textContent = coldInput.value;
+    updateRangeFill(coldInput);
   });
 
-  const form = el("form", { class: "form" }, [
-    el("div", { class: "form-row" }, [
-      buildField("Название сорта", "До 60 символов", nameInput, nameError, true),
-      buildField("Группа спелости (ФАО)", "100–900", faoInput, faoError)
-    ]),
-    el("div", { class: "form-row" }, [
-      buildField("ГТК Селянинова", "0.1–3.0", gtkInput, gtkError),
-      buildField("Сумма активных температур", "°C·дней, 0–4000", gddInput, gddError)
-    ]),
-    el("div", { class: "form-row" }, [
-      buildField("Урожайность", "ц/га, 1–300", yieldInput, yieldError),
-      el("div", { class: "field" }, [el("label", { text: "Засухоустойчивость" }), el("div", { class: "range-input" }, [droughtInput, droughtValue])])
-    ]),
-    el("div", { class: "form-row" }, [
-      el("div", { class: "field" }, [el("label", { text: "Холодостойкость" }), el("div", { class: "range-input" }, [coldInput, coldValue])])
-    ]),
-    el("div", { class: "field full" }, [el("label", { text: "Описание" }), descriptionInput, descriptionError])
-  ]);
-
-  const errors = { name: nameError, fao: faoError, gtk: gtkError, gdd: gddError, yield: yieldError, description: descriptionError };
-
-  const cancelButton = el("button", { class: "btn-ghost", type: "button", text: "Отмена" });
-  const saveButton = el("button", { class: "btn-primary", type: "submit", style: "width:auto" }, [svgIcon("M5 12l4 4 10-10"), el("span", { text: isEdit ? "Сохранить" : "Добавить" })]);
-
-  const footer = el("div", { class: "form-actions" }, [cancelButton, saveButton]);
-  const modal = openModal({ title: isEdit ? "Редактирование сорта" : "Новый сорт", body: form, footer });
-
-  cancelButton.addEventListener("click", () => modal.close());
-
-  const clearErrors = () => {
-    for (const node of Object.values(errors)) {
-      node.textContent = "";
-    }
-    [nameInput, faoInput, gtkInput, gddInput, yieldInput, descriptionInput].forEach((node) => node.classList.remove("is-invalid"));
+  const errors = {
+    name: el("span", { class: "w-field-error" }),
+    fao: el("span", { class: "w-field-error" }),
+    gtk: el("span", { class: "w-field-error" }),
+    gdd: el("span", { class: "w-field-error" }),
+    yield: el("span", { class: "w-field-error" }),
+    description: el("span", { class: "w-field-error" })
   };
+  const inputs = { name: nameInput, fao: faoInput, gtk: gtkInput, gdd: gddInput, yield: yieldInput, description: descriptionInput };
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    clearErrors();
-    const payload = {
+  const formErrorStrip = el("div", { class: "w-error-strip", hidden: true });
+
+  const snapshot = () => JSON.stringify(readPayload());
+  const initialSnapshot = snapshot();
+  function readPayload() {
+    return {
       name: nameInput.value,
       fao: faoInput.value,
       gtk: gtkInput.value,
@@ -170,91 +478,155 @@ function openForm(variety) {
       yield: yieldInput.value,
       description: descriptionInput.value
     };
-    const result = isEdit ? await updateVariety(variety.id, payload) : await createVariety(payload);
-    if (!result.ok) {
-      for (const key of Object.keys(result.errors)) {
-        if (errors[key]) {
-          errors[key].textContent = result.errors[key];
-        }
-        const inputMap = { name: nameInput, fao: faoInput, gtk: gtkInput, gdd: gddInput, yield: yieldInput, description: descriptionInput };
-        if (inputMap[key]) {
-          inputMap[key].classList.add("is-invalid");
-        }
+  }
+
+  const form = el("form", { class: "w-form", novalidate: true }, [
+    formErrorStrip,
+    buildField({ labelText: "Название сорта", required: true, hint: "до 60 символов", control: nameInput, errorNode: errors.name, full: true }),
+    buildField({ labelText: "Группа спелости (ФАО)", hint: "100–900", control: faoInput, errorNode: errors.fao }),
+    buildField({ labelText: "Сумма активных температур, °C·сут", hint: "0–4000", control: gddInput, errorNode: errors.gdd }),
+    buildField({ labelText: "Требуемый ГТК", hint: "0.1–3.0", control: gtkInput, errorNode: errors.gtk }),
+    buildField({ labelText: "Урожайность, ц/га", hint: "1–300", control: yieldInput, errorNode: errors.yield }),
+    el("div", { class: "w-field" }, [
+      el("label", { class: "w-label" }, [el("span", { text: "Засухоустойчивость" })]),
+      el("div", { class: "w-range-row" }, [droughtInput, droughtValue]),
+      el("div", { class: "w-range-ends" }, [el("span", { text: "1" }), el("span", { text: "10" })])
+    ]),
+    el("div", { class: "w-field" }, [
+      el("label", { class: "w-label" }, [el("span", { text: "Холодостойкость" })]),
+      el("div", { class: "w-range-row" }, [coldInput, coldValue]),
+      el("div", { class: "w-range-ends" }, [el("span", { text: "1" }), el("span", { text: "10" })])
+    ]),
+    buildField({ labelText: "Примечания", control: descriptionInput, errorNode: errors.description, full: true })
+  ]);
+
+  const cancelButton = el("button", { class: "w-btn w-btn--secondary", type: "button", text: "Отмена" });
+  const saveButton = el("button", { class: "w-btn w-btn--primary", type: "submit" }, [el("span", { text: "Сохранить" })]);
+
+  const submitForm = () => {
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+    } else {
+      form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    }
+  };
+  saveButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    submitForm();
+  });
+
+  const dialog = openDialog({
+    title: isEdit ? `Редактирование: ${initial.name}` : "Новый сорт",
+    body: form,
+    footer: [cancelButton, saveButton],
+    initialFocus: nameInput
+  });
+
+  function clearErrors() {
+    for (const node of Object.values(errors)) {
+      node.textContent = "";
+    }
+    for (const input of Object.values(inputs)) {
+      input.classList.remove("is-invalid");
+    }
+    formErrorStrip.hidden = true;
+  }
+
+  function showErrors(map) {
+    for (const [key, text] of Object.entries(map)) {
+      if (errors[key]) {
+        errors[key].textContent = text;
       }
+      if (inputs[key]) {
+        inputs[key].classList.add("is-invalid");
+      }
+    }
+  }
+
+  function localValidate(payload) {
+    const local = {};
+    const emptyNumber = (raw) => String(raw ?? "").trim() === "";
+    if (emptyNumber(payload.fao)) {
+      local.fao = "Укажите значение";
+    }
+    if (emptyNumber(payload.gdd)) {
+      local.gdd = "Укажите значение";
+    }
+    if (emptyNumber(payload.gtk)) {
+      local.gtk = "Укажите значение";
+    }
+    if (emptyNumber(payload.yield)) {
+      local.yield = "Укажите значение";
+    }
+    return local;
+  }
+
+  const tryClose = async () => {
+    if (snapshot() !== initialSnapshot) {
+      const leave = await confirmDialog({
+        title: "Закрыть форму без сохранения?",
+        message: "Внесённые изменения не будут сохранены.",
+        confirmLabel: "Закрыть",
+        cancelLabel: "Продолжить редактирование",
+        danger: true
+      });
+      if (!leave) {
+        return;
+      }
+    }
+    dialog.close(null);
+  };
+
+  cancelButton.addEventListener("click", tryClose);
+  dialog.onRequestClose(() => {
+    tryClose();
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (saveButton.disabled) {
       return;
     }
-    modal.close();
-    showToast(isEdit ? "Сорт обновлён" : "Сорт добавлен", "success");
-    await refresh();
-    emit("varieties:changed");
-  });
-
-  nameInput.focus();
-}
-
-function confirmDelete(variety) {
-  const message = el("p", { class: "confirm-text" }, [el("span", { text: "Вы действительно хотите удалить сорт " }), el("b", { text: `«${variety.name}»` }), el("span", { text: "? Это действие нельзя отменить." })]);
-
-  const cancelButton = el("button", { class: "btn-ghost", type: "button", text: "Отмена" });
-  const deleteButton = el("button", { class: "btn-primary", type: "button", style: "width:auto; background:linear-gradient(180deg,#ff7b7b,#e04444); box-shadow:0 10px 26px rgba(224,68,68,0.34), inset 0 1px 0 rgba(255,255,255,0.4); color:#fff" }, [svgIcon("M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"), el("span", { text: "Удалить" })]);
-
-  const footer = el("div", { class: "form-actions" }, [cancelButton, deleteButton]);
-  const modal = openModal({ title: "Удаление сорта", body: message, footer, small: true });
-
-  cancelButton.addEventListener("click", () => modal.close());
-  deleteButton.addEventListener("click", async () => {
-    const result = await deleteVariety(variety.id);
-    if (result.ok) {
-      modal.close();
-      showToast("Сорт удалён", "success");
+    clearErrors();
+    const payload = readPayload();
+    const local = localValidate(payload);
+    if (Object.keys(local).length) {
+      showErrors(local);
+      return;
+    }
+    saveButton.disabled = true;
+    saveButton.setAttribute("aria-busy", "true");
+    try {
+      const result = isEdit ? await updateVariety(variety.id, payload) : await createVariety(payload);
+      if (!result.ok) {
+        showErrors(result.errors || {});
+        return;
+      }
+      showToast(isEdit ? "Изменения сохранены" : "Сорт добавлен", "success");
+      store.selectedId = isEdit ? variety.id : result.variety?.id || store.selectedId;
+      dialog.close(null);
       await refresh();
       emit("varieties:changed");
-    } else {
-      showToast("Не удалось удалить сорт", "error");
+    } catch {
+      formErrorStrip.hidden = false;
+      formErrorStrip.replaceChildren(icon("alert", "w-ico"), el("span", { text: "Не удалось сохранить сорт. Попробуйте ещё раз." }));
+    } finally {
+      saveButton.disabled = false;
+      saveButton.removeAttribute("aria-busy");
     }
   });
-}
-
-async function refresh() {
-  allVarieties = await listVarieties();
-  renderList();
 }
 
 export async function initVarietiesPage() {
-  pageRoot = document.getElementById("view-varieties");
-  const backButton = el(
-    "button",
-    { class: "page-back", type: "button", onclick: () => emit("nav", { view: "map" }) },
-    [svgIcon("M15 18l-6-6 6-6"), el("span", { text: "Назад к карте" })]
-  );
-
-  const addButton = el("button", { class: "btn-primary", type: "button", style: "width:auto", onclick: () => openForm(null) }, [
-    svgIcon("M12 5v14M5 12h14"),
-    el("span", { text: "Добавить сорт" })
-  ]);
-
-  const head = el("div", { class: "page-head" }, [
-    backButton,
-    el("div", {}, [el("h1", { class: "page-title", text: "База сортов кукурузы" }), el("p", { class: "page-sub", text: "Характеристики сортов используются при прогнозировании" })]),
-    el("div", { class: "page-actions" }, [addButton])
-  ]);
-
-  searchNode = el("input", { type: "text", placeholder: "Поиск по названию…" });
-  const search = el("div", { class: "search" }, [svgIcon("M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 0l8 8"), searchNode]);
-  countNode = el("span", { class: "count-pill", text: "" });
-  const toolbar = el("div", { class: "toolbar" }, [search, countNode]);
-
-  gridNode = el("div", { class: "varieties-grid" });
-  const page = el("div", { class: "view-page" }, [head, toolbar, gridNode]);
-  pageRoot.replaceChildren(page);
-
-  searchNode.addEventListener(
-    "input",
-    debounce(() => {
-      query = searchNode.value.trim().toLowerCase();
-      renderList();
-    }, 140)
-  );
-
+  rootNode = document.getElementById("varieties-root");
+  const view = document.getElementById("view-varieties");
+  if (view && !view.dataset.varietiesBound) {
+    view.dataset.varietiesBound = "1";
+    view.addEventListener("scroll", () => {
+      store.scroll = view.scrollTop;
+    }, { passive: true });
+  }
   await refresh();
 }
+
+

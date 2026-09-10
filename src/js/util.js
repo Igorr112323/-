@@ -44,6 +44,12 @@ export function el(tag, props = {}, children = []) {
       }
     } else if (key === "text") {
       node.textContent = value;
+    } else if (key === "on" && value && typeof value === "object") {
+      for (const eventName of Object.keys(value)) {
+        if (typeof value[eventName] === "function") {
+          node.addEventListener(eventName, value[eventName]);
+        }
+      }
     } else if (key.startsWith("on") && typeof value === "function") {
       node.addEventListener(key.slice(2).toLowerCase(), value);
     } else if (value !== null && value !== undefined && value !== false) {
@@ -60,13 +66,24 @@ export function el(tag, props = {}, children = []) {
   return node;
 }
 
-export function svgIcon(pathData, viewBox = "0 0 24 24") {
+export function svgIcon(pathData, viewBox = "0 0 24 24", className = "nav-ico") {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", viewBox);
   svg.setAttribute("aria-hidden", "true");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", pathData);
-  svg.append(path);
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.75");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  if (className) {
+    svg.setAttribute("class", className);
+  }
+  const paths = Array.isArray(pathData) ? pathData : [pathData];
+  for (const d of paths) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
   return svg;
 }
 
@@ -183,4 +200,131 @@ export function formatInteger(value) {
 
 export function assetUrl(relativePath) {
   return new URL(relativePath, document.baseURI).href;
+}
+
+// --- helpers for the light workspace screens (do not affect the map view) ---
+
+export function parseISODate(iso) {
+  if (iso instanceof Date) {
+    return new Date(iso.getTime());
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ""));
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  const value = new Date(iso);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+export function plural(count, one, few, many) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return one;
+  }
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return few;
+  }
+  return many;
+}
+
+export function formatPeriod(start, end) {
+  const first = parseISODate(start);
+  const last = parseISODate(end);
+  if (!first || !last) {
+    return "—";
+  }
+  if (first.getFullYear() === last.getFullYear()) {
+    return `${pad2(first.getDate())}.${pad2(first.getMonth() + 1)} — ${pad2(last.getDate())}.${pad2(last.getMonth() + 1)}.${last.getFullYear()}`;
+  }
+  return `${formatShortDate(first)} — ${formatShortDate(last)}`;
+}
+
+export function formatDateTime(ts) {
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+  return `${formatShortDate(date)} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+export function formatDecimal(value, digits = 1) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return "—";
+  }
+  return num.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+export function formatDecimalOrDash(value, digits = 1, suffix = "") {
+  const num = Number(value);
+  if (value === null || value === undefined || !Number.isFinite(num)) {
+    return "—";
+  }
+  return `${num.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits })}${suffix}`;
+}
+
+export function normalizeDecimalText(text) {
+  return String(text ?? "").trim().replace(/\s|\u00A0/g, "").replace(/,/g, ".");
+}
+
+export function shortId(id) {
+  const value = String(id || "");
+  const core = value.includes("-") ? value.split("-").pop() : value;
+  return core.slice(0, 8);
+}
+
+export function escapeCsvCell(value) {
+  const text = value === null || value === undefined ? "" : String(value);
+  if (/[",;\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+export function buildCsv(rows) {
+  return "\uFEFF" + rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
+export function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+export function setBusy(button, busy, busyLabel = "Выполняется…") {
+  if (!button) {
+    return;
+  }
+  if (busy) {
+    if (!button.dataset.busySaved) {
+      button.dataset.busySaved = "1";
+      button.dataset.busyHtml = "";
+      button._busyRestore = Array.from(button.childNodes);
+    }
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    const spinner = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    spinner.setAttribute("viewBox", "0 0 24 24");
+    spinner.setAttribute("class", "w-spinner");
+    spinner.setAttribute("aria-hidden", "true");
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    circle.setAttribute("d", "M12 3a9 9 0 1 0 9 9");
+    spinner.append(circle);
+    button.replaceChildren(spinner, el("span", { text: busyLabel }));
+  } else if (button.dataset.busySaved) {
+    delete button.dataset.busySaved;
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+    const children = button._busyRestore || [];
+    button.replaceChildren(...children);
+    delete button._busyRestore;
+  }
 }

@@ -1,6 +1,9 @@
 import { loadDatabaseBytes, saveDatabaseBytes } from "./storage.js";
 import { assetUrl, uid } from "./util.js";
 
+const DATASET_KEEP_LIMIT = 30;
+const DATASET_SCHEMA_VERSION = 1;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS varieties (
   id TEXT PRIMARY KEY,
@@ -26,6 +29,20 @@ CREATE TABLE IF NOT EXISTS forecasts (
   created_at INTEGER NOT NULL,
   data_json TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS datasets (
+  id TEXT PRIMARY KEY,
+  lat REAL NOT NULL,
+  lon REAL NOT NULL,
+  variety_name TEXT NOT NULL DEFAULT '',
+  range_months INTEGER NOT NULL,
+  target_date TEXT NOT NULL,
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  record_count INTEGER NOT NULL,
+  source TEXT NOT NULL DEFAULT 'demo',
+  created_at INTEGER NOT NULL,
+  data_json TEXT NOT NULL DEFAULT ''
+);
 `;
 
 const SEED_VARIETIES = [
@@ -42,8 +59,12 @@ function now() {
   return Date.now();
 }
 
+function normalizeNumeric(value) {
+  return String(value ?? "").trim().replace(/[\s\u00A0]/g, "").replace(/,/g, ".");
+}
+
 function toNumber(value, fallback) {
-  const parsed = Number(value);
+  const parsed = Number(normalizeNumeric(value));
   if (!Number.isFinite(parsed)) {
     return fallback;
   }
@@ -51,7 +72,7 @@ function toNumber(value, fallback) {
 }
 
 function toInteger(value, fallback) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(normalizeNumeric(value), 10);
   if (!Number.isFinite(parsed)) {
     return fallback;
   }
@@ -244,14 +265,131 @@ export async function addForecast(record, data = null) {
   const timestamp = now();
   execute(
     "INSERT INTO forecasts (id, lat, lon, variety_id, variety_name, range_months, target_date, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    [id, record.lat, record.lon, record.varietyId || null, record.varietyName || "", record.rangeMonths, record.targetDate, timestamp, data ? JSON.stringify(data) : ""]
+    [id, record.lat, record.lon, record.varietyId || null, record.varietyName || "", record.rangeMonths, record.targetDate, timestamp, data ? packForecast(data) : ""]
   );
   await persistDatabase();
   return { id, ...record, created_at: timestamp };
 }
 
+// Compact storage format shared by reports and data sets; keeps the DB small in browser preview.
+export function packForecast(forecast) {
+  return JSON.stringify({
+    v: DATASET_SCHEMA_VERSION,
+    request: forecast.request,
+    period: forecast.period,
+    rows: (forecast.series || []).map((day) => [day.date, day.tMin, day.tMax, day.tMean, day.precip, day.humidity, day.soilMoisture]),
+    indicators: forecast.indicators,
+    risks: forecast.risks
+  });
+}
+
+export function unpackForecast(text) {
+  if (!text) {
+    return null;
+  }
+  let parsed = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return null;
+  }
+  // Legacy rows stored the full forecast object as-is.
+  if (Array.isArray(parsed.series)) {
+    return parsed;
+  }
+  if (Array.isArray(parsed.rows) && parsed.request && parsed.period) {
+    const series = parsed.rows.map((row) => ({
+      date: row[0],
+      tMin: Number(row[1]),
+      tMax: Number(row[2]),
+      tMean: Number(row[3]),
+      precip: Number(row[4]),
+      humidity: Number(row[5]),
+      soilMoisture: Number(row[6]),
+      label: null
+    }));
+    if (series.some((day) => !Number.isFinite(day.tMean))) {
+      return null;
+    }
+    return {
+      request: parsed.request,
+      period: parsed.period,
+      series,
+      indicators: parsed.indicators || null,
+      risks: parsed.risks || []
+    };
+  }
+  return null;
+}
+
+export async function addDataset(record, forecast) {
+  const id = uid();
+  const timestamp = now();
+  execute(
+    "INSERT INTO datasets (id, lat, lon, variety_name, range_months, target_date, period_start, period_end, record_count, source, created_at, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [
+      id,
+      record.lat,
+      record.lon,
+      record.varietyName || "",
+      record.rangeMonths,
+      record.targetDate,
+      forecast.period.start,
+      forecast.period.end,
+      (forecast.series || []).length,
+      "demo",
+      timestamp,
+      packForecast(forecast)
+    ]
+  );
+  await pruneDatasets();
+  await persistDatabase();
+  return id;
+}
+
+// Keep only the most recent downloaded sets; reports hold their own snapshots and are never touched.
+async function pruneDatasets() {
+  const count = queryScalar("SELECT COUNT(*) AS count FROM datasets");
+  if (count > DATASET_KEEP_LIMIT) {
+    execute(
+      "DELETE FROM datasets WHERE id NOT IN (SELECT id FROM datasets ORDER BY created_at DESC LIMIT ?)",
+      [DATASET_KEEP_LIMIT]
+    );
+  }
+}
+
+export async function listDatasets(limit = 500) {
+  return queryAll(
+    "SELECT id, lat, lon, variety_name, range_months, target_date, period_start, period_end, record_count, source, created_at FROM datasets ORDER BY created_at DESC LIMIT ?",
+    [limit]
+  );
+}
+
+export async function getDataset(id) {
+  const rows = queryAll("SELECT * FROM datasets WHERE id = ?", [id]);
+  return rows.length > 0 ? rows[0] : null;
+}
+
+export async function deleteDataset(id) {
+  execute("DELETE FROM datasets WHERE id = ?", [id]);
+  await persistDatabase();
+}
+
+export async function clearAllDatasets() {
+  execute("DELETE FROM datasets");
+  await persistDatabase();
+}
+
 export async function listForecasts(limit = 12) {
   return queryAll("SELECT * FROM forecasts ORDER BY created_at DESC LIMIT ?", [limit]);
+}
+
+export async function getForecast(id) {
+  const rows = queryAll("SELECT * FROM forecasts WHERE id = ?", [id]);
+  return rows.length > 0 ? rows[0] : null;
 }
 
 export async function deleteForecast(id) {

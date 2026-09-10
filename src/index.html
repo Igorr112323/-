@@ -7,6 +7,7 @@
   <title>АгроПрогноз — Кукуруза</title>
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/workspace.css" />
 </head>
 <body>
   <div id="app">
@@ -109,10 +110,10 @@
         </aside>
       </section>
 
-      <section class="view" id="view-results"></section>
-      <section class="view view-scroll" id="view-data"></section>
-      <section class="view view-scroll" id="view-reports"></section>
-      <section class="view view-scroll" id="view-varieties"></section>
+      <section class="view workspace-light" id="view-results"><div class="w-root" id="results-root"></div></section>
+      <section class="view view-scroll workspace-light" id="view-data"><div class="w-root" id="data-root"></div></section>
+      <section class="view view-scroll workspace-light" id="view-reports"><div class="w-root" id="reports-root"></div></section>
+      <section class="view view-scroll workspace-light" id="view-varieties"><div class="w-root" id="varieties-root"></div></section>
     </main>
   </div>
 
